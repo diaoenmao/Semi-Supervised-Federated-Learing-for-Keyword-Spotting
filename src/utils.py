@@ -121,7 +121,7 @@ def process_control():
     cfg['num_supervised'] = int(cfg['control']['num_supervised'])
     data_shape = {'SpeechCommandsV1': [1], 'SpeechCommandsV2': [1]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
-    cfg['conv'] = {'hidden_size': [32, 64]}
+    cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet9'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet18'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['wresnet28x2'] = {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}

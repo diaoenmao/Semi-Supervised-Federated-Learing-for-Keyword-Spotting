@@ -199,7 +199,6 @@ def compute_flops(module, inp, out):
     else:
         print(f"[Flops]: {type(module).__name__} is not supported!")
         return 0
-    pass
 
 
 def compute_Conv2d_flops(module, inp, out):
