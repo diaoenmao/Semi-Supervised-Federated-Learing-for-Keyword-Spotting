@@ -1,18 +1,13 @@
 import copy
 import os
 import torch
+import torchaudio
 import numpy as np
 import models
 from config import cfg
-from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
-
-data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.3530,)),
-              'CIFAR10': ((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-              'CIFAR100': ((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
-              'SVHN': ((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970))}
 
 
 def fetch_dataset(data_name):
@@ -23,6 +18,27 @@ def fetch_dataset(data_name):
     if data_name in ['SpeechCommandsV1', 'SpeechCommandsV2']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\')'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\')'.format(data_name))
+        n_fft = round(0.03 * dataset['train'].sr)
+        hop_length = round(0.01 * dataset['train'].sr)
+        n_stft = n_fft // 2 + 1
+        dataset['train'].transform = datasets.Compose(
+            [datasets.transforms.RandomTimeShift(0.1),
+             # datasets.transforms.RandomPitchShift(4, n_fft=n_fft),
+             datasets.transforms.RandomBackgroundNoise(
+                 dataset['train'].background_noise),
+             datasets.transforms.RandomResample([0.85, 1.15]),
+             torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+             datasets.transforms.RandomTimeStretch([0.85, 1.15], hop_length=hop_length, n_freq=n_stft),
+             datasets.transforms.ComplextoPower(),
+             datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+             torchaudio.transforms.FrequencyMasking(7),
+             torchaudio.transforms.TimeMasking(25)])
+        dataset['test'].transform = datasets.Compose([
+            torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+            datasets.transforms.ComplextoPower(),
+            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={
+                'n_stft': n_stft})
+        ])
     else:
         raise ValueError('Not valid dataset name')
     print('data ready')

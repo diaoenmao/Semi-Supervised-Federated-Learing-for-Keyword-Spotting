@@ -137,7 +137,7 @@ def process_control():
     cfg[model_name]['nesterov'] = True
     cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
     cfg[model_name]['num_epochs'] = 400
-    cfg[model_name]['batch_size'] = {'train': 250, 'test': 500}
+    cfg[model_name]['batch_size'] = {'train': 2, 'test': 2}
     return
 
 
@@ -236,7 +236,13 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 
 
 def collate(input):
+    input['length'] = [torch.tensor(input['data'][i].size(-1)) for i in range(len(input['data']))]
     for k in input:
-        print(k,input[k])
-        input[k] = torch.stack(input[k], 0)
+        if k in ['data']:
+            max_length = max(input['length'])
+            input[k] = [torch.nn.functional.pad(input[k][i], (0, max_length - input['length'][i])) for i in
+                        range(len(input[k]))]
+            input[k] = torch.cat(input[k], 0)
+        else:
+            input[k] = torch.stack(input[k], 0)
     return input
