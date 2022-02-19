@@ -2,6 +2,7 @@ import copy
 import os
 import torch
 import torchaudio
+import torchvision
 import numpy as np
 import models
 from config import cfg
@@ -31,13 +32,18 @@ def fetch_dataset(data_name):
              datasets.transforms.RandomTimeStretch([0.85, 1.15], hop_length=hop_length, n_freq=n_stft),
              datasets.transforms.ComplextoPower(),
              datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+             # datasets.transforms.MinMaxNormalize(dim=(-2, -1)),
              torchaudio.transforms.FrequencyMasking(7),
-             torchaudio.transforms.TimeMasking(25)])
+             torchaudio.transforms.TimeMasking(25),
+             datasets.transforms.SpectoImage(),
+             datasets.randaugment.RandAugment(n=2, m=2),
+             torchvision.transforms.ToTensor(),
+             # torchvision.transforms.Normalize(*cfg['stats'][data_name])
+             ])
         dataset['test'].transform = datasets.Compose([
             torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
             datasets.transforms.ComplextoPower(),
-            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={
-                'n_stft': n_stft})
+            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft})
         ])
     else:
         raise ValueError('Not valid dataset name')

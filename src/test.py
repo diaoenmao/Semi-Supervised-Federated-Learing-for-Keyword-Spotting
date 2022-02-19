@@ -2,6 +2,7 @@ from config import cfg
 from data import fetch_dataset, make_data_loader
 from utils import collate, process_dataset, save_img, process_control, resume, to_device
 import torch
+import torchvision
 import torchaudio
 import models
 
@@ -20,10 +21,13 @@ if __name__ == "__main__":
     for i, input in enumerate(data_loader['train']):
         input = collate(input)
         print(i, input['data'].shape, input['target'].shape)
+        print(input['data'].max(), input['data'].min())
+        torchvision.utils.save_image(input['data'], './output/train.png')
         # torchaudio.save('./output/temp.wav', input['data'][0], 16000)
-        # exit()
         break
     for i, input in enumerate(data_loader['test']):
         input = collate(input)
         print(i, input['data'].shape, input['target'].shape)
+        print(input['data'].max(), input['data'].min())
+        torchvision.utils.save_image(input['data'], './output/test.png')
         break

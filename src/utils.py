@@ -242,7 +242,5 @@ def collate(input):
             max_length = max(input['length'])
             input[k] = [torch.nn.functional.pad(input[k][i], (0, max_length - input['length'][i])) for i in
                         range(len(input[k]))]
-            input[k] = torch.cat(input[k], 0)
-        else:
-            input[k] = torch.stack(input[k], 0)
+        input[k] = torch.stack(input[k], 0)
     return input

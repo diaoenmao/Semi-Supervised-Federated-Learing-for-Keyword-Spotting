@@ -1,7 +1,7 @@
-import os
 import torch
 import torch.nn.functional as F
 import torchaudio
+from PIL import Image
 
 
 class RandomTimeShift(torch.nn.Module):
@@ -123,3 +123,26 @@ class SpectoMFCC(torch.nn.Module):
             mel_specgram = self.amplitude_to_DB(mel_specgram)
         mfcc = torch.matmul(mel_specgram.transpose(-1, -2), self.dct_mat).transpose(-1, -2)
         return mfcc
+
+
+class MinMaxNormalize(torch.nn.Module):
+    def __init__(self, dim=(-2, -1)):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, input):
+        high = input.amax(dim=self.dim)
+        low = input.amin(dim=self.dim)
+        input.sub_(low).div_(max(high - low, 1e-5))
+        return input
+
+
+class SpectoImage(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, input):
+        input = input.squeeze(0).mul(255).add_(0.5).clamp_(0, 255).to(torch.uint8).numpy()
+        input = Image.fromarray(input)
+        return input
+
