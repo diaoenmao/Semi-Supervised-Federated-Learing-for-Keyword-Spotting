@@ -19,31 +19,34 @@ def fetch_dataset(data_name):
     if data_name in ['SpeechCommandsV1', 'SpeechCommandsV2']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\')'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\')'.format(data_name))
+        data_length = 1 * dataset['train'].sr
         n_fft = round(0.03 * dataset['train'].sr)
         hop_length = round(0.01 * dataset['train'].sr)
         n_stft = n_fft // 2 + 1
-        dataset['train'].transform = datasets.Compose(
-            [datasets.transforms.RandomTimeShift(0.1),
-             # datasets.transforms.RandomPitchShift(4, n_fft=n_fft),
-             datasets.transforms.RandomBackgroundNoise(
-                 dataset['train'].background_noise),
-             datasets.transforms.RandomResample([0.85, 1.15]),
-             torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
-             datasets.transforms.RandomTimeStretch([0.85, 1.15], hop_length=hop_length, n_freq=n_stft),
-             datasets.transforms.ComplextoPower(),
-             datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
-             # datasets.transforms.MinMaxNormalize(dim=(-2, -1)),
-             torchaudio.transforms.FrequencyMasking(7),
-             torchaudio.transforms.TimeMasking(25),
-             datasets.transforms.SpectoImage(),
-             datasets.randaugment.RandAugment(n=2, m=2),
-             torchvision.transforms.ToTensor(),
-             # torchvision.transforms.Normalize(*cfg['stats'][data_name])
-             ])
+        dataset['train'].transform = datasets.Compose([
+            # datasets.transforms.RandomTimeResample([0.85, 1.15]),
+            datasets.transforms.CenterCropPad(data_length),
+            # datasets.transforms.RandomTimeShift(0.1),
+            # datasets.transforms.RandomBackgroundNoise(dataset['train'].background_noise, 0.8, 0.1),
+            torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+            # datasets.transforms.RandomPitchShift(4),
+            # torchaudio.transforms.InverseSpectrogram(n_fft=n_fft, hop_length=hop_length),
+            datasets.transforms.ComplextoPower(),
+            # torchaudio.transforms.FrequencyMasking(42),
+            # torchaudio.transforms.TimeMasking(25),
+            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+            torchaudio.transforms.AmplitudeToDB('power', 80),
+            datasets.transforms.SpectoImage(),
+            datasets.randaugment.RandAugment(n=2, m=10),
+            torchvision.transforms.ToTensor(),
+            # torchvision.transforms.Normalize(*cfg['stats'][data_name])
+        ])
         dataset['test'].transform = datasets.Compose([
+            datasets.transforms.CenterCropPad(data_length),
             torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
             datasets.transforms.ComplextoPower(),
-            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft})
+            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+            torchaudio.transforms.AmplitudeToDB('power', 80),
         ])
     else:
         raise ValueError('Not valid dataset name')
@@ -159,34 +162,22 @@ def separate_dataset(dataset, idx):
     separated_dataset = copy.deepcopy(dataset)
     separated_dataset.data = [dataset.data[s] for s in idx]
     separated_dataset.target = [dataset.target[s] for s in idx]
-    separated_dataset.other['id'] = list(range(len(separated_dataset.data)))
+    separated_dataset.id = list(range(len(separated_dataset.data)))
     return separated_dataset
 
 
-def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None):
+def separate_dataset_semi(server_dataset, client_dataset=None, supervised_idx=None):
     if supervised_idx is None:
-        if cfg['data_name'] in ['STL10']:
-            if cfg['num_supervised'] == -1:
-                supervised_idx = torch.arange(5000).tolist()
-            else:
-                target = torch.tensor(server_dataset.target)[:5000]
-                num_supervised_per_class = cfg['num_supervised'] // cfg['target_size']
-                supervised_idx = []
-                for i in range(cfg['target_size']):
-                    idx = torch.where(target == i)[0]
-                    idx = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
-                    supervised_idx.extend(idx)
+        if cfg['num_supervised'] == -1:
+            supervised_idx = list(range(len(server_dataset)))
         else:
-            if cfg['num_supervised'] == -1:
-                supervised_idx = list(range(len(server_dataset)))
-            else:
-                target = torch.tensor(server_dataset.target)
-                num_supervised_per_class = cfg['num_supervised'] // cfg['target_size']
-                supervised_idx = []
-                for i in range(cfg['target_size']):
-                    idx = torch.where(target == i)[0]
-                    idx = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
-                    supervised_idx.extend(idx)
+            target = torch.tensor(server_dataset.target)
+            num_supervised_per_class = cfg['num_supervised'] // cfg['target_size']
+            supervised_idx = []
+            for i in range(cfg['target_size']):
+                idx = torch.where(target == i)[0]
+                idx = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
+                supervised_idx.extend(idx)
     idx = list(range(len(server_dataset)))
     unsupervised_idx = list(set(idx) - set(supervised_idx))
     _server_dataset = separate_dataset(server_dataset, supervised_idx)
@@ -194,7 +185,7 @@ def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None
         _client_dataset = separate_dataset(server_dataset, unsupervised_idx)
     else:
         _client_dataset = separate_dataset(client_dataset, unsupervised_idx)
-        transform = FixTransform(cfg['data_name'])
+        transform = StrongTransform(cfg['data_name'])
         _client_dataset.transform = transform
     return _server_dataset, _client_dataset, supervised_idx
 

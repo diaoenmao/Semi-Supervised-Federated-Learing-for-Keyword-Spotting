@@ -25,6 +25,8 @@ class SpeechCommandsV1(Dataset):
         self.classes_counts = make_classes_counts(self.target)
         self.background_noise, self.classes_to_labels, self.target_size = load(
             os.path.join(self.processed_folder, 'meta.pt'), mode='pickle')
+        self.background_noise = [torchaudio.load(self.background_noise[i])[0] for i in
+                                 range(len(self.background_noise))]
 
     def __getitem__(self, index):
         id, data, speaker_id, utterance_id, target = torch.tensor(self.id[index]), \

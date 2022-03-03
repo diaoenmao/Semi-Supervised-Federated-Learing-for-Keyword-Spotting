@@ -21,13 +21,12 @@ if __name__ == "__main__":
     for i, input in enumerate(data_loader['train']):
         input = collate(input)
         print(i, input['data'].shape, input['target'].shape)
-        print(input['data'].max(), input['data'].min())
         torchvision.utils.save_image(input['data'], './output/train.png')
         # torchaudio.save('./output/temp.wav', input['data'][0], 16000)
         break
+    exit()
     for i, input in enumerate(data_loader['test']):
         input = collate(input)
         print(i, input['data'].shape, input['target'].shape)
-        print(input['data'].max(), input['data'].min())
         torchvision.utils.save_image(input['data'], './output/test.png')
-        break
+        # break

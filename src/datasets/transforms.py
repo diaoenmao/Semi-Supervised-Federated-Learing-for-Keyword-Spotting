@@ -4,6 +4,36 @@ import torchaudio
 from PIL import Image
 
 
+class RandomTimeResample(torch.nn.Module):
+    def __init__(self, factor):
+        super().__init__()
+        self.factor = factor
+
+    def forward(self, input):
+        data_length = input.size(-1)
+        factor = torch.ones(1).uniform_(self.factor[0], self.factor[1]).item()
+        new_data_length = round(data_length * factor)
+        input = input.unsqueeze(0).unsqueeze(-1)
+        input = torch.nn.functional.interpolate(input, [new_data_length, 1], mode='bilinear')
+        input = input.squeeze(0).squeeze(-1)
+        return input
+
+
+class CenterCropPad(torch.nn.Module):
+    def __init__(self, data_length):
+        super().__init__()
+        self.data_length = data_length
+
+    def forward(self, input):
+        data_length = input.size(-1)
+        if data_length < self.data_length:
+            pad = self.data_length - data_length
+            input = torch.nn.functional.pad(input, [pad // 2, pad - (pad // 2)])
+        elif data_length > self.data_length:
+            input = input[..., data_length // 2 - self.data_length // 2: data_length // 2 + self.data_length // 2]
+        return input
+
+
 class RandomTimeShift(torch.nn.Module):
     def __init__(self, shift_time, sr=16000):
         super().__init__()
@@ -13,29 +43,15 @@ class RandomTimeShift(torch.nn.Module):
         self.padding = (shift, shift)
 
     def forward(self, input):
-        length = input.size(-1)
+        data_length = input.size(-1)
         input = F.pad(input, self.padding)
         left = torch.randint(0, self.padding[0], size=(1,))
-        input = input[..., left: left + length]
-        return input
-
-
-class RandomPitchShift(torch.nn.Module):
-    def __init__(self, shift_pitch, sr=16000, n_fft=512):
-        super().__init__()
-        self.shift_pitch = shift_pitch
-        self.sr = sr
-        self.n_fft = n_fft
-
-    def forward(self, input):
-        shift_pitch = torch.randint(0, self.shift_pitch, size=(1,)).item()
-        pitch_shift = torchaudio.transforms.PitchShift(sample_rate=self.sr, n_steps=shift_pitch, n_fft=self.n_fft)
-        input = pitch_shift(input)
+        input = input[..., left: left + data_length]
         return input
 
 
 class RandomBackgroundNoise(torch.nn.Module):
-    def __init__(self, background_noise, freq=0.3, volume=0.1):
+    def __init__(self, background_noise, freq=0.8, volume=0.1):
         super().__init__()
         self.background_noise = background_noise
         self.freq = freq
@@ -47,7 +63,7 @@ class RandomBackgroundNoise(torch.nn.Module):
             length = input.size(-1)
             volume = torch.ones(1).uniform_(0, self.volume).item()
             path_idx = torch.randint(0, len(self.background_noise), size=(1,)).item()
-            background_noise = torchaudio.load(self.background_noise[path_idx])[0]
+            background_noise = self.background_noise[path_idx]
             left = torch.randint(0, background_noise.size(-1) - length + 1, size=(1,))
             background_noise = background_noise[..., left: left + length]
             input = input + volume * background_noise
@@ -55,32 +71,17 @@ class RandomBackgroundNoise(torch.nn.Module):
         return input
 
 
-class RandomResample(torch.nn.Module):
-    def __init__(self, factor, sr=16000):
+class RandomPitchShift(torch.nn.Module):
+    def __init__(self, shift_pitch):
         super().__init__()
-        self.factor = factor
-        self.sr = sr
+        self.shift_pitch = shift_pitch
+        self.padding = (0, 0, shift_pitch, shift_pitch)
 
     def forward(self, input):
-        orig_freq = self.sr
-        new_freq = round(orig_freq * torch.ones(1).uniform_(self.factor[0], self.factor[1]).item())
-        resample = torchaudio.transforms.Resample(orig_freq, new_freq)
-        input = resample(input)
-        return input
-
-
-class RandomTimeStretch(torch.nn.Module):
-    def __init__(self, factor, hop_length, n_freq):
-        super().__init__()
-        self.factor = factor
-        self.hop_length = hop_length
-        self.n_freq = n_freq
-        self.time_warp = torchaudio.transforms.TimeStretch(hop_length=self.hop_length, n_freq=self.n_freq,
-                                                           fixed_rate=None)
-
-    def forward(self, input):
-        rate = torch.ones(1).uniform_(self.factor[0], self.factor[1]).item()
-        input = self.time_warp(input, rate)
+        data_length = input.size(-2)
+        input = F.pad(input, self.padding)
+        left = torch.randint(0, self.shift_pitch, size=(1,))
+        input = input[..., left: left + data_length, :]
         return input
 
 
@@ -125,16 +126,16 @@ class SpectoMFCC(torch.nn.Module):
         return mfcc
 
 
-class MinMaxNormalize(torch.nn.Module):
-    def __init__(self, dim=(-2, -1)):
-        super().__init__()
-        self.dim = dim
-
-    def forward(self, input):
-        high = input.amax(dim=self.dim)
-        low = input.amin(dim=self.dim)
-        input.sub_(low).div_(max(high - low, 1e-5))
-        return input
+# class MinMaxNormalize(torch.nn.Module):
+#     def __init__(self, dim=(-2, -1)):
+#         super().__init__()
+#         self.dim = dim
+#
+#     def forward(self, input):
+#         high = input.amax(dim=self.dim)
+#         low = input.amin(dim=self.dim)
+#         input.sub_(low).div_(max(high - low, 1e-5))
+#         return input
 
 
 class SpectoImage(torch.nn.Module):
@@ -142,7 +143,9 @@ class SpectoImage(torch.nn.Module):
         super().__init__()
 
     def forward(self, input):
+        high = input.amax(dim=(-2, -1))
+        low = input.amin(dim=(-2, -1))
+        input.sub_(low).div_(max(high - low, 1e-5))
         input = input.squeeze(0).mul(255).add_(0.5).clamp_(0, 255).to(torch.uint8).numpy()
         input = Image.fromarray(input)
         return input
-

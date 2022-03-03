@@ -119,8 +119,8 @@ def process_control():
     if cfg['control']['num_supervised'] == 'fs':
         cfg['control']['num_supervised'] = '-1'
     cfg['num_supervised'] = int(cfg['control']['num_supervised'])
-    data_shape = {'SpeechCommandsV1': [1], 'SpeechCommandsV2': [1]}
-    cfg['data_shape'] = data_shape[cfg['data_name']]
+    data_shape = {'SpeechCommandsV1': [1, 40, 101], 'SpeechCommandsV2': [1, 40, 101]}
+    # cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet9'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet18'] = {'hidden_size': [64, 128, 256, 512]}
@@ -129,7 +129,7 @@ def process_control():
     cfg['threshold'] = 0.95
     cfg['alpha'] = 0.75
     model_name = cfg['model_name']
-    cfg[model_name]['shuffle'] = {'train': True, 'test': False}
+    cfg[model_name]['shuffle'] = {'train': False, 'test': False}
     cfg[model_name]['optimizer_name'] = 'SGD'
     cfg[model_name]['lr'] = 1e-1
     cfg[model_name]['momentum'] = 0.9
@@ -137,7 +137,8 @@ def process_control():
     cfg[model_name]['nesterov'] = True
     cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
     cfg[model_name]['num_epochs'] = 400
-    cfg[model_name]['batch_size'] = {'train': 2, 'test': 2}
+    cfg[model_name]['batch_size'] = {'train': 250, 'test': 250}
+    torch.set_num_threads(4)
     return
 
 
@@ -236,11 +237,6 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 
 
 def collate(input):
-    input['length'] = [torch.tensor(input['data'][i].size(-1)) for i in range(len(input['data']))]
     for k in input:
-        if k in ['data']:
-            max_length = max(input['length'])
-            input[k] = [torch.nn.functional.pad(input[k][i], (0, max_length - input['length'][i])) for i in
-                        range(len(input[k]))]
         input[k] = torch.stack(input[k], 0)
     return input
