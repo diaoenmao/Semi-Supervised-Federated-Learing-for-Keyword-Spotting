@@ -19,35 +19,23 @@ def fetch_dataset(data_name):
     if data_name in ['SpeechCommandsV1', 'SpeechCommandsV2']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\')'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\')'.format(data_name))
-        data_length = 1 * dataset['train'].sr
-        n_fft = round(0.03 * dataset['train'].sr)
-        hop_length = round(0.01 * dataset['train'].sr)
-        n_stft = n_fft // 2 + 1
-        dataset['train'].transform = datasets.Compose([
-            # datasets.transforms.RandomTimeResample([0.85, 1.15]),
-            datasets.transforms.CenterCropPad(data_length),
-            # datasets.transforms.RandomTimeShift(0.1),
-            # datasets.transforms.RandomBackgroundNoise(dataset['train'].background_noise, 0.8, 0.1),
-            torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
-            # datasets.transforms.RandomPitchShift(4),
-            # torchaudio.transforms.InverseSpectrogram(n_fft=n_fft, hop_length=hop_length),
-            datasets.transforms.ComplextoPower(),
-            # torchaudio.transforms.FrequencyMasking(42),
-            # torchaudio.transforms.TimeMasking(25),
-            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
-            torchaudio.transforms.AmplitudeToDB('power', 80),
-            datasets.transforms.SpectoImage(),
-            datasets.randaugment.RandAugment(n=2, m=10),
-            torchvision.transforms.ToTensor(),
-            # torchvision.transforms.Normalize(*cfg['stats'][data_name])
-        ])
-        dataset['test'].transform = datasets.Compose([
-            datasets.transforms.CenterCropPad(data_length),
-            torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
-            datasets.transforms.ComplextoPower(),
-            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
-            torchaudio.transforms.AmplitudeToDB('power', 80),
-        ])
+        cfg['data_length'] = 1 * dataset['train'].sr
+        cfg['n_fft'] = round(0.03 * dataset['train'].sr)
+        cfg['hop_length'] = round(0.01 * dataset['train'].sr)
+        cfg['background_noise'] = dataset['train'].background_noise
+        plain_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
+        basic_transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                               cfg['background_noise'])
+        basic_spec_transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                         cfg['background_noise'])
+        basic_spec_ps_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                               cfg['background_noise'])
+        basic_spec_ps_rand_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                                    cfg['background_noise'])
+        dataset['train'].transform = datasets.Compose(
+            [*basic_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
+        dataset['test'].transform = datasets.Compose(
+            [*plain_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
     else:
         raise ValueError('Not valid dataset name')
     print('data ready')
@@ -221,57 +209,90 @@ def make_batchnorm_stats(dataset, model, tag):
     return test_model
 
 
-class FixTransform(object):
-    def __init__(self, data_name):
-        import datasets
-        if data_name in ['CIFAR10', 'CIFAR100']:
-            self.weak = transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats[data_name])
-            ])
-            self.strong = transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                datasets.RandAugment(n=2, m=10),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats[data_name])
-            ])
-        elif data_name in ['SVHN']:
-            self.weak = transforms.Compose([
-                transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats[data_name])
-            ])
-            self.strong = transforms.Compose([
-                transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                datasets.RandAugment(n=2, m=10),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats[data_name])
-            ])
-        elif data_name in ['STL10']:
-            self.weak = transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(96, padding=12, padding_mode='reflect'),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats[data_name])
-            ])
-            self.strong = transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(96, padding=12, padding_mode='reflect'),
-                datasets.RandAugment(n=2, m=10),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats[data_name])
-            ])
-        else:
-            raise ValueError('Not valid dataset')
+def make_plain_transform(data_length, n_fft, hop_length):
+    import datasets
+    n_stft = n_fft // 2 + 1
+    plain_transform = [datasets.transforms.CenterCropPad(data_length),
+                       torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+                       datasets.transforms.ComplextoPower(),
+                       datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+                       torchaudio.transforms.AmplitudeToDB('power', 80),
+                       datasets.transforms.SpectoImage(),
+                       torchvision.transforms.ToTensor()]
+    return plain_transform
 
-    def __call__(self, input):
-        data = self.weak(input['data'])
-        aug = self.strong(input['data'])
-        input = {**input, 'data': data, 'aug': aug}
-        return input
+
+def make_basic_transform(data_length, n_fft, hop_length, background_noise):
+    import datasets
+    n_stft = n_fft // 2 + 1
+    basic_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
+                       datasets.transforms.CenterCropPad(data_length),
+                       datasets.transforms.RandomTimeShift(0.1),
+                       datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
+                       torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+                       datasets.transforms.ComplextoPower(),
+                       datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+                       torchaudio.transforms.AmplitudeToDB('power', 80),
+                       datasets.transforms.SpectoImage(),
+                       torchvision.transforms.ToTensor()]
+    return basic_transform
+
+
+def make_basic_spec_transform(data_length, n_fft, hop_length, background_noise):
+    import datasets
+    n_stft = n_fft // 2 + 1
+    basic_spec_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
+                            datasets.transforms.CenterCropPad(data_length),
+                            datasets.transforms.RandomTimeShift(0.1),
+                            datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
+                            torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+                            datasets.transforms.ComplextoPower(),
+                            torchaudio.transforms.FrequencyMasking(42),
+                            torchaudio.transforms.TimeMasking(25),
+                            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+                            torchaudio.transforms.AmplitudeToDB('power', 80),
+                            datasets.transforms.SpectoImage(),
+                            torchvision.transforms.ToTensor()]
+    return basic_spec_transform
+
+
+def make_basic_spec_ps_transform(data_length, n_fft, hop_length, background_noise):
+    import datasets
+    n_stft = n_fft // 2 + 1
+    basic_spec_ps_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
+                               datasets.transforms.CenterCropPad(data_length),
+                               datasets.transforms.RandomTimeShift(0.1),
+                               datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
+                               torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+                               datasets.transforms.RandomPitchShift(4),
+                               datasets.transforms.ComplextoPower(),
+                               torchaudio.transforms.FrequencyMasking(42),
+                               torchaudio.transforms.TimeMasking(25),
+                               datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+                               torchaudio.transforms.AmplitudeToDB('power', 80),
+                               datasets.transforms.SpectoImage(),
+                               torchvision.transforms.ToTensor()]
+    return basic_spec_ps_transform
+
+
+def make_basic_spec_ps_rand_transform(data_length, n_fft, hop_length, background_noise):
+    import datasets
+    n_stft = n_fft // 2 + 1
+    basic_spec_ps_rand_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
+                                    datasets.transforms.CenterCropPad(data_length),
+                                    datasets.transforms.RandomTimeShift(0.1),
+                                    datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
+                                    torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+                                    datasets.transforms.RandomPitchShift(4),
+                                    datasets.transforms.ComplextoPower(),
+                                    torchaudio.transforms.FrequencyMasking(42),
+                                    torchaudio.transforms.TimeMasking(25),
+                                    datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+                                    torchaudio.transforms.AmplitudeToDB('power', 80),
+                                    datasets.transforms.SpectoImage(),
+                                    datasets.randaugment.RandAugment(n=2, m=10),
+                                    torchvision.transforms.ToTensor()]
+    return basic_spec_ps_rand_transform
 
 
 class MixDataset(Dataset):

@@ -181,7 +181,7 @@ def rand_augment_pool():
             (Posterize, 4, 0),
             # (Rotate, 30, None),
             (Sharpness, 1.8, 0.1),
-            (ShearX, 0.3, None),
+            # (ShearX, 0.3, None),
             # (ShearY, 0.3, None),
             (Smooth, None, None),
             (Solarize, 256, None),
@@ -203,12 +203,8 @@ class RandAugment(object):
 
     def __call__(self, img):
         ops = [self.augment_pool[i] for i in torch.randint(len(self.augment_pool), (self.n,)).tolist()]
-        # ops = [self.augment_pool[i] for i in range(len(self.augment_pool))]
-        # ops = [ops[8]]
-        print(ops)
         for op, max_v, bias in ops:
             prob = torch.FloatTensor(1, ).uniform_(0.2, 0.8).item()
             if torch.rand(1,).item() + prob >= 1:
                 img = op(img, v=self.m, max_v=max_v, bias=bias)
-            # img = op(img, v=self.m, max_v=max_v, bias=bias)
         return img

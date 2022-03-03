@@ -120,7 +120,7 @@ def process_control():
         cfg['control']['num_supervised'] = '-1'
     cfg['num_supervised'] = int(cfg['control']['num_supervised'])
     data_shape = {'SpeechCommandsV1': [1, 40, 101], 'SpeechCommandsV2': [1, 40, 101]}
-    # cfg['data_shape'] = data_shape[cfg['data_name']]
+    cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet9'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet18'] = {'hidden_size': [64, 128, 256, 512]}
@@ -139,6 +139,7 @@ def process_control():
     cfg[model_name]['num_epochs'] = 400
     cfg[model_name]['batch_size'] = {'train': 250, 'test': 250}
     torch.set_num_threads(4)
+    make_stats()
     return
 
 
@@ -148,8 +149,9 @@ def make_stats():
     makedir_exist_ok(stats_path)
     filenames = os.listdir(stats_path)
     for filename in filenames:
-        stats_name = os.path.splitext(filename)[0]
-        stats[stats_name] = load(os.path.join(stats_path, filename))
+        data_name = os.path.splitext(filename)[0]
+        file_path = os.path.join(stats_path, filename)
+        stats[data_name] = load(file_path)
     return stats
 
 
