@@ -20,22 +20,29 @@ def fetch_dataset(data_name):
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\')'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\')'.format(data_name))
         cfg['data_length'] = 1 * dataset['train'].sr
-        cfg['n_fft'] = round(0.03 * dataset['train'].sr)
-        cfg['hop_length'] = round(0.01 * dataset['train'].sr)
+        cfg['n_fft'] = round(0.04 * dataset['train'].sr)
+        cfg['hop_length'] = round(0.02 * dataset['train'].sr)
         cfg['background_noise'] = dataset['train'].background_noise
+        if cfg['aug'] == 'basic':
+            train_transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                   cfg['background_noise'])
+        elif cfg['aug'] == 'basic-spec':
+            train_transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                        cfg['background_noise'])
+        elif cfg['aug'] == 'basic-spec-ps':
+            train_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                           cfg['background_noise'])
+        elif cfg['aug'] == 'basic-spec-ps-rand':
+            train_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                           cfg['background_noise'])
+        else:
+            raise ValueError('Not valid aug')
         plain_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
-        basic_transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                               cfg['background_noise'])
-        basic_spec_transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                         cfg['background_noise'])
-        basic_spec_ps_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                               cfg['background_noise'])
-        basic_spec_ps_rand_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                                    cfg['background_noise'])
+        test_transform = plain_transform
         dataset['train'].transform = datasets.Compose(
-            [*basic_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
+            [*train_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
         dataset['test'].transform = datasets.Compose(
-            [*plain_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
+            [*test_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
     else:
         raise ValueError('Not valid dataset name')
     print('data ready')
@@ -60,16 +67,16 @@ def make_data_loader(dataset, tag, batch_size=None, shuffle=None, sampler=None, 
         _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
         if sampler is not None:
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, sampler=sampler[k],
-                                        pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                        worker_init_fn=np.random.seed(cfg['seed']))
+                                        pin_memory=cfg['pin_memory'], num_workers=cfg['num_workers'],
+                                        collate_fn=input_collate, worker_init_fn=np.random.seed(cfg['seed']))
         elif batch_sampler is not None:
             data_loader[k] = DataLoader(dataset=dataset[k], batch_sampler=batch_sampler[k],
-                                        pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                        worker_init_fn=np.random.seed(cfg['seed']))
+                                        pin_memory=cfg['pin_memory'], num_workers=cfg['num_workers'],
+                                        collate_fn=input_collate, worker_init_fn=np.random.seed(cfg['seed']))
         else:
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, shuffle=_shuffle,
-                                        pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                        worker_init_fn=np.random.seed(cfg['seed']))
+                                        pin_memory=cfg['pin_memory'], num_workers=cfg['num_workers'],
+                                        collate_fn=input_collate, worker_init_fn=np.random.seed(cfg['seed']))
 
     return data_loader
 
@@ -154,43 +161,36 @@ def separate_dataset(dataset, idx):
     return separated_dataset
 
 
-def separate_dataset_semi(server_dataset, client_dataset=None, supervised_idx=None):
+def separate_dataset_semi(dataset, supervised_idx=None):
     if supervised_idx is None:
         if cfg['num_supervised'] == -1:
-            supervised_idx = list(range(len(server_dataset)))
+            supervised_idx = list(range(len(dataset)))
         else:
-            target = torch.tensor(server_dataset.target)
+            target = torch.tensor(dataset.target)
             num_supervised_per_class = cfg['num_supervised'] // cfg['target_size']
             supervised_idx = []
             for i in range(cfg['target_size']):
                 idx = torch.where(target == i)[0]
                 idx = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
                 supervised_idx.extend(idx)
-    idx = list(range(len(server_dataset)))
+    idx = list(range(len(dataset)))
     unsupervised_idx = list(set(idx) - set(supervised_idx))
-    _server_dataset = separate_dataset(server_dataset, supervised_idx)
-    if client_dataset is None:
-        _client_dataset = separate_dataset(server_dataset, unsupervised_idx)
-    else:
-        _client_dataset = separate_dataset(client_dataset, unsupervised_idx)
-        transform = StrongTransform(cfg['data_name'])
-        _client_dataset.transform = transform
-    return _server_dataset, _client_dataset, supervised_idx
-
+    sup_dataset = separate_dataset(dataset, supervised_idx)
+    unsup_dataset = separate_dataset(dataset, unsupervised_idx)
+    return sup_dataset, unsup_dataset, supervised_idx
 
 def make_batchnorm_dataset_su(server_dataset, client_dataset):
     batchnorm_dataset = copy.deepcopy(server_dataset)
     batchnorm_dataset.data = batchnorm_dataset.data + client_dataset.data
     batchnorm_dataset.target = batchnorm_dataset.target + client_dataset.target
-    batchnorm_dataset.other['id'] = batchnorm_dataset.other['id'] + client_dataset.other['id']
+    batchnorm_dataset.id = batchnorm_dataset.id + client_dataset.id
     return batchnorm_dataset
 
 
 def make_dataset_normal(dataset):
-    import datasets
     _transform = dataset.transform
-    transform = datasets.Compose([transforms.ToTensor(), transforms.Normalize(*data_stats[cfg['data_name']])])
-    dataset.transform = transform
+    plain_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
+    dataset.transform = plain_transform
     return dataset, _transform
 
 
@@ -248,7 +248,7 @@ def make_basic_spec_transform(data_length, n_fft, hop_length, background_noise):
                             torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
                             datasets.transforms.ComplextoPower(),
                             torchaudio.transforms.FrequencyMasking(42),
-                            torchaudio.transforms.TimeMasking(25),
+                            torchaudio.transforms.TimeMasking(12),
                             datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
                             torchaudio.transforms.AmplitudeToDB('power', 80),
                             datasets.transforms.SpectoImage(),
@@ -267,7 +267,7 @@ def make_basic_spec_ps_transform(data_length, n_fft, hop_length, background_nois
                                datasets.transforms.RandomPitchShift(4),
                                datasets.transforms.ComplextoPower(),
                                torchaudio.transforms.FrequencyMasking(42),
-                               torchaudio.transforms.TimeMasking(25),
+                               torchaudio.transforms.TimeMasking(12),
                                datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
                                torchaudio.transforms.AmplitudeToDB('power', 80),
                                datasets.transforms.SpectoImage(),
@@ -286,7 +286,7 @@ def make_basic_spec_ps_rand_transform(data_length, n_fft, hop_length, background
                                     datasets.transforms.RandomPitchShift(4),
                                     datasets.transforms.ComplextoPower(),
                                     torchaudio.transforms.FrequencyMasking(42),
-                                    torchaudio.transforms.TimeMasking(25),
+                                    torchaudio.transforms.TimeMasking(12),
                                     datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
                                     torchaudio.transforms.AmplitudeToDB('power', 80),
                                     datasets.transforms.SpectoImage(),

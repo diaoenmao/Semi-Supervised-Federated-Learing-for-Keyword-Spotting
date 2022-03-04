@@ -126,18 +126,6 @@ class SpectoMFCC(torch.nn.Module):
         return mfcc
 
 
-# class MinMaxNormalize(torch.nn.Module):
-#     def __init__(self, dim=(-2, -1)):
-#         super().__init__()
-#         self.dim = dim
-#
-#     def forward(self, input):
-#         high = input.amax(dim=self.dim)
-#         low = input.amin(dim=self.dim)
-#         input.sub_(low).div_(max(high - low, 1e-5))
-#         return input
-
-
 class SpectoImage(torch.nn.Module):
     def __init__(self):
         super().__init__()

@@ -11,7 +11,6 @@ if __name__ == "__main__":
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
     cfg['control']['data_name'] = 'SpeechCommandsV1'
-    cfg['control']['model_name'] = 'conv'
     process_control()
     dataset = fetch_dataset(cfg['data_name'])
     process_dataset(dataset)

@@ -26,7 +26,7 @@ class Metric(object):
         return metric_name
 
     def make_pivot(self):
-        if cfg['data_name'] in ['CIFAR10', 'CIFAR100', 'SVHN', 'STL10']:
+        if cfg['data_name'] in ['SpeechCommandsV1', 'SpeechCommandsV2']:
             pivot = -float('inf')
             pivot_direction = 'up'
             pivot_name = 'Accuracy'

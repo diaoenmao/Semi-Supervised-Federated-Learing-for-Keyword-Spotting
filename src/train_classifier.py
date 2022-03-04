@@ -63,8 +63,7 @@ def runExperiment():
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
-        test_model = make_batchnorm_stats(dataset['train'], model, cfg['model_name'])
-        test(data_loader['test'], test_model, metric, logger, epoch)
+        test(data_loader['test'], model, metric, logger, epoch)
         scheduler.step()
         logger.safe(False)
         model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()

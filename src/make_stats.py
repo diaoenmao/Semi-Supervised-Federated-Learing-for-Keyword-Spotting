@@ -29,8 +29,8 @@ if __name__ == "__main__":
             root = os.path.join('data', cfg['data_name'])
             dataset = eval('datasets.{}(root=root, split=\'train\')'.format(cfg['data_name']))
             cfg['data_length'] = 1 * dataset.sr
-            cfg['n_fft'] = round(0.03 * dataset.sr)
-            cfg['hop_length'] = round(0.01 * dataset.sr)
+            cfg['n_fft'] = round(0.04 * dataset.sr)
+            cfg['hop_length'] = round(0.02 * dataset.sr)
             cfg['background_noise'] = dataset.background_noise
             plain_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
             dataset.transform = datasets.Compose(plain_transform)
@@ -38,7 +38,6 @@ if __name__ == "__main__":
             stats = Stats(dim=dim)
             for i, input in enumerate(data_loader['train']):
                 input = collate(input)
-                print(cfg['data_name'], i, input['data'].size())
                 stats.update(input['data'])
             stats = (stats.mean.tolist(), stats.std.tolist())
             print(cfg['data_name'], stats)

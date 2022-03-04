@@ -92,39 +92,36 @@ class WideResNet(nn.Module):
                 mix_output = self.f(input['mix_data'])
                 output['loss'] += input['lam'] * loss_fn(mix_output, input['mix_target'][:, 0].detach()) + (
                         1 - input['lam']) * loss_fn(mix_output, input['mix_target'][:, 1].detach())
+            else:
+                raise ValueError('Not valid loss mode')
         else:
-            if not torch.any(input['target'] == -1):
-                output['loss'] = loss_fn(output['target'], input['target'])
+            output['loss'] = loss_fn(output['target'], input['target'])
         return output
 
 
-def wresnet28x2(momentum=None, track=False):
+def wresnet28x2():
     data_shape = cfg['data_shape']
-    print(data_shape)
-    exit
     target_size = cfg['target_size']
     depth = cfg['wresnet28x2']['depth']
     widen_factor = cfg['wresnet28x2']['widen_factor']
     drop_rate = cfg['wresnet28x2']['drop_rate']
     model = WideResNet(data_shape, target_size, depth, widen_factor, drop_rate)
     model.apply(init_param)
-    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
     return model
 
 
-def wresnet28x8(momentum=None, track=False):
-    # data_shape = cfg['data_shape']
+def wresnet28x8():
+    data_shape = cfg['data_shape']
     target_size = cfg['target_size']
     depth = cfg['wresnet28x8']['depth']
     widen_factor = cfg['wresnet28x8']['widen_factor']
     drop_rate = cfg['wresnet28x8']['drop_rate']
-    model = WideResNet(target_size, depth, widen_factor, drop_rate)
+    model = WideResNet(data_shape, target_size, depth, widen_factor, drop_rate)
     model.apply(init_param)
-    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
     return model
 
 
-def wresnet37x2(momentum=None, track=False):
+def wresnet37x2():
     data_shape = cfg['data_shape']
     target_size = cfg['target_size']
     depth = cfg['wresnet37x2']['depth']
@@ -132,5 +129,4 @@ def wresnet37x2(momentum=None, track=False):
     drop_rate = cfg['wresnet37x2']['drop_rate']
     model = WideResNet(data_shape, target_size, depth, widen_factor, drop_rate)
     model.apply(init_param)
-    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
     return model

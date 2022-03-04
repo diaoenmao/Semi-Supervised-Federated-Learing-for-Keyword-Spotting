@@ -119,7 +119,8 @@ def process_control():
     if cfg['control']['num_supervised'] == 'fs':
         cfg['control']['num_supervised'] = '-1'
     cfg['num_supervised'] = int(cfg['control']['num_supervised'])
-    data_shape = {'SpeechCommandsV1': [1, 40, 101], 'SpeechCommandsV2': [1, 40, 101]}
+    cfg['aug'] = cfg['control']['aug']
+    data_shape = {'SpeechCommandsV1': [1, 40, 51], 'SpeechCommandsV2': [1, 40, 51]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet9'] = {'hidden_size': [64, 128, 256, 512]}
@@ -131,7 +132,7 @@ def process_control():
     model_name = cfg['model_name']
     cfg[model_name]['shuffle'] = {'train': False, 'test': False}
     cfg[model_name]['optimizer_name'] = 'SGD'
-    cfg[model_name]['lr'] = 1e-1
+    cfg[model_name]['lr'] = 3e-2
     cfg[model_name]['momentum'] = 0.9
     cfg[model_name]['weight_decay'] = 5e-4
     cfg[model_name]['nesterov'] = True
@@ -139,7 +140,7 @@ def process_control():
     cfg[model_name]['num_epochs'] = 400
     cfg[model_name]['batch_size'] = {'train': 250, 'test': 250}
     torch.set_num_threads(4)
-    make_stats()
+    cfg['stats'] = make_stats()
     return
 
 

@@ -1,14 +1,16 @@
 ---
 # control
 control:
-  data_name: CIFAR10
+  data_name: SpeechCommandsV1
   model_name: wresnet28x2
   num_supervised: '4000'
+  aug: 'basic'
   loss_mode: 'fix-mix'
   num_clients: '100'
   active_rate: '0.1'
   data_split_mode: 'iid'
 # experiment
+pin_memory: False
 num_workers: 0
 init_seed: 0
 num_experiments: 1
