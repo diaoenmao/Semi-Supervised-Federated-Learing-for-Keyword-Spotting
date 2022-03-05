@@ -74,52 +74,30 @@ class SpeechCommandsV1(Dataset):
         return fmt_str
 
     def make_data(self):
-        valid_data = _load_list(self.raw_folder, 'validation_list.txt')
-        test_data = _load_list(self.raw_folder, 'testing_list.txt')
-        train_data = sorted(str(p) for p in Path(self.raw_folder).glob("*/*.wav"))
-        train_data = [f for f in train_data if '_nohash_' in f and '_background_noise_' not in f]
+        train_raw_data = sorted(str(p) for p in Path(self.raw_folder).glob("*/*.wav"))
+        train_raw_data = [f for f in train_raw_data if '_nohash_' in f and '_background_noise_' not in f]
+        valid_raw_data = _load_list(self.raw_folder, 'validation_list.txt')
+        test_raw_data = _load_list(self.raw_folder, 'testing_list.txt')
         background_noise = sorted(
             str(p) for p in Path(os.path.join(self.raw_folder, '_background_noise_')).glob("*.wav"))
-        data = train_data + valid_data + test_data
-        target, speaker_id = set(), set()
-        for path in data:
-            speaker_id_i = os.path.splitext(os.path.basename(path))[0].split('_')[0]
-            target_i = os.path.basename(os.path.dirname(path))
-            speaker_id.add(speaker_id_i)
-            target.add(target_i)
-        speaker_id = sorted(list(speaker_id))
+        target_dict = {"yes": 0, "no": 1, "up": 2, "down": 3, "left": 4, "right": 5, "on": 6, "off": 7, "stop": 8,
+                       "go": 9, 'silence': 10, 'unknown': 11}
+        train_data, train_speaker_id, train_utterance, train_target = filter_target(train_raw_data, target_dict,
+                                                                                    background_noise)
+        valid_data, valid_speaker_id, valid_utterance, valid_target = filter_target(valid_raw_data, target_dict,
+                                                                                    background_noise)
+        test_data, test_speaker_id, test_utterance, test_target = filter_target(test_raw_data, target_dict,
+                                                                                background_noise)
+        speaker_id = train_speaker_id + valid_speaker_id + test_speaker_id
+        speaker_id = sorted(list(set(speaker_id)))
         speaker_id_dict = {speaker_id[i]: i for i in range(len(speaker_id))}
-        target = sorted(list(target))
-        target_dict = {target[i]: i for i in range(len(target))}
-        train_speaker_id, train_utterance, train_target = [], [], []
-        for path in train_data:
-            train_speaker_id_i, train_utterance_i, train_target_i = load_speechcommands_item(path)
-            train_speaker_id_i = speaker_id_dict[train_speaker_id_i]
-            train_target_i = target_dict[train_target_i]
-            train_speaker_id.append(train_speaker_id_i)
-            train_utterance.append(train_utterance_i)
-            train_target.append(train_target_i)
-        valid_speaker_id, valid_utterance, valid_target = [], [], []
-        for path in valid_data:
-            valid_speaker_id_i, valid_utterance_i, valid_target_i = load_speechcommands_item(path)
-            valid_speaker_id_i = speaker_id_dict[valid_speaker_id_i]
-            valid_target_i = target_dict[valid_target_i]
-            valid_speaker_id.append(valid_speaker_id_i)
-            valid_utterance.append(valid_utterance_i)
-            valid_target.append(valid_target_i)
-        test_speaker_id, test_utterance, test_target = [], [], []
-        for path in test_data:
-            test_speaker_id_i, test_utterance_i, test_target_i = load_speechcommands_item(path)
-            test_speaker_id_i = speaker_id_dict[test_speaker_id_i]
-            test_target_i = target_dict[test_target_i]
-            test_speaker_id.append(test_speaker_id_i)
-            test_utterance.append(test_utterance_i)
-            test_target.append(test_target_i)
+        train_speaker_id = [speaker_id_dict[x] for x in train_speaker_id]
+        valid_speaker_id = [speaker_id_dict[x] for x in valid_speaker_id]
+        test_speaker_id = [speaker_id_dict[x] for x in test_speaker_id]
         train_id, valid_id, test_id = np.arange(len(train_data)).astype(np.int64), np.arange(len(valid_data)).astype(
             np.int64), np.arange(len(test_data)).astype(np.int64)
-        classes = target
         classes_to_labels = target_dict
-        target_size = len(classes)
+        target_size = len(target_dict.keys())
         return (train_id, train_data, train_speaker_id, train_utterance, train_target), (
             valid_id, valid_data, valid_speaker_id, valid_utterance, valid_target), (
                    test_id, test_data, test_speaker_id, test_utterance, test_target), (
@@ -190,52 +168,30 @@ class SpeechCommandsV2(Dataset):
         return fmt_str
 
     def make_data(self):
-        valid_data = _load_list(self.raw_folder, 'validation_list.txt')
-        test_data = _load_list(self.raw_folder, 'testing_list.txt')
-        train_data = sorted(str(p) for p in Path(self.raw_folder).glob("*/*.wav"))
-        train_data = [f for f in train_data if '_nohash_' in f and '_background_noise_' not in f]
+        train_raw_data = sorted(str(p) for p in Path(self.raw_folder).glob("*/*.wav"))
+        train_raw_data = [f for f in train_raw_data if '_nohash_' in f and '_background_noise_' not in f]
+        valid_raw_data = _load_list(self.raw_folder, 'validation_list.txt')
+        test_raw_data = _load_list(self.raw_folder, 'testing_list.txt')
         background_noise = sorted(
             str(p) for p in Path(os.path.join(self.raw_folder, '_background_noise_')).glob("*.wav"))
-        data = train_data + valid_data + test_data
-        target, speaker_id = set(), set()
-        for path in data:
-            speaker_id_i = os.path.splitext(os.path.basename(path))[0].split('_')[0]
-            target_i = os.path.basename(os.path.dirname(path))
-            speaker_id.add(speaker_id_i)
-            target.add(target_i)
-        speaker_id = sorted(list(speaker_id))
+        target_dict = {"yes": 0, "no": 1, "up": 2, "down": 3, "left": 4, "right": 5, "on": 6, "off": 7, "stop": 8,
+                       "go": 9, 'silence': 10, 'unknown': 11}
+        train_data, train_speaker_id, train_utterance, train_target = filter_target(train_raw_data, target_dict,
+                                                                                    background_noise)
+        valid_data, valid_speaker_id, valid_utterance, valid_target = filter_target(valid_raw_data, target_dict,
+                                                                                    background_noise)
+        test_data, test_speaker_id, test_utterance, test_target = filter_target(test_raw_data, target_dict,
+                                                                                background_noise)
+        speaker_id = train_speaker_id + valid_speaker_id + test_speaker_id
+        speaker_id = sorted(list(set(speaker_id)))
         speaker_id_dict = {speaker_id[i]: i for i in range(len(speaker_id))}
-        target = sorted(list(target))
-        target_dict = {target[i]: i for i in range(len(target))}
-        train_speaker_id, train_utterance, train_target = [], [], []
-        for path in train_data:
-            train_speaker_id_i, train_utterance_i, train_target_i = load_speechcommands_item(path)
-            train_speaker_id_i = speaker_id_dict[train_speaker_id_i]
-            train_target_i = target_dict[train_target_i]
-            train_speaker_id.append(train_speaker_id_i)
-            train_utterance.append(train_utterance_i)
-            train_target.append(train_target_i)
-        valid_speaker_id, valid_utterance, valid_target = [], [], []
-        for path in valid_data:
-            valid_speaker_id_i, valid_utterance_i, valid_target_i = load_speechcommands_item(path)
-            valid_speaker_id_i = speaker_id_dict[valid_speaker_id_i]
-            valid_target_i = target_dict[valid_target_i]
-            valid_speaker_id.append(valid_speaker_id_i)
-            valid_utterance.append(valid_utterance_i)
-            valid_target.append(valid_target_i)
-        test_speaker_id, test_utterance, test_target = [], [], []
-        for path in test_data:
-            test_speaker_id_i, test_utterance_i, test_target_i = load_speechcommands_item(path)
-            test_speaker_id_i = speaker_id_dict[test_speaker_id_i]
-            test_target_i = target_dict[test_target_i]
-            test_speaker_id.append(test_speaker_id_i)
-            test_utterance.append(test_utterance_i)
-            test_target.append(test_target_i)
+        train_speaker_id = [speaker_id_dict[x] for x in train_speaker_id]
+        valid_speaker_id = [speaker_id_dict[x] for x in valid_speaker_id]
+        test_speaker_id = [speaker_id_dict[x] for x in test_speaker_id]
         train_id, valid_id, test_id = np.arange(len(train_data)).astype(np.int64), np.arange(len(valid_data)).astype(
             np.int64), np.arange(len(test_data)).astype(np.int64)
-        classes = target
         classes_to_labels = target_dict
-        target_size = len(classes)
+        target_size = len(target_dict.keys())
         return (train_id, train_data, train_speaker_id, train_utterance, train_target), (
             valid_id, valid_data, valid_speaker_id, valid_utterance, valid_target), (
                    test_id, test_data, test_speaker_id, test_utterance, test_target), (
@@ -257,3 +213,32 @@ def load_speechcommands_item(path):
     utterance = int(utterance)
     target = os.path.basename(os.path.dirname(path))
     return speaker_id, utterance, target
+
+
+def filter_target(raw_data, target_dict, background_noise):
+    data, speaker_id, utterance, target = [], [], [], []
+    unknown_data, unknown_speaker_id, unknown_utterance, unknown_target = [], [], [], []
+    for path in raw_data:
+        train_speaker_id_i, train_utterance_i, train_target_i = load_speechcommands_item(path)
+        if train_target_i in target_dict:
+            data.append(path)
+            speaker_id.append(train_speaker_id_i)
+            utterance.append(train_utterance_i)
+            target.append(target_dict[train_target_i])
+        else:
+            unknown_data.append(path)
+            unknown_speaker_id.append(train_speaker_id_i)
+            unknown_utterance.append(train_utterance_i)
+            unknown_target.append(target_dict['unknown'])
+    data_size = len(data)
+    silence_idx = np.random.choice(len(background_noise), int(0.1 * data_size)).tolist()
+    data = data + [background_noise[i] for i in silence_idx]
+    speaker_id = speaker_id + [os.path.splitext(os.path.basename(background_noise[i]))[0] for i in silence_idx]
+    utterance = utterance + [0 for _ in range(len(silence_idx))]
+    target = target + [target_dict['silence'] for _ in range(len(silence_idx))]
+    unknown_idx = np.random.choice(len(unknown_data), int(0.1 * data_size)).tolist()
+    data = data + [unknown_data[i] for i in unknown_idx]
+    speaker_id = speaker_id + [unknown_speaker_id[i] for i in unknown_idx]
+    utterance = utterance + [unknown_utterance[i] for i in unknown_idx]
+    target = target + [unknown_target[i] for i in unknown_idx]
+    return data, speaker_id, utterance, target
