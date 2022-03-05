@@ -20,12 +20,12 @@ class DSConv2D(nn.Module):
 class DSCNN(nn.Module):
     def __init__(self, data_shape, hidden_size, target_size):
         super().__init__()
-        blocks = [nn.DSConv2D(data_shape[0], hidden_size[0], 3, 1),
+        blocks = [DSConv2D(data_shape[0], hidden_size[0], 3, 1),
                   nn.BatchNorm2d(hidden_size[0]),
                   nn.ReLU(inplace=True),
                   nn.MaxPool2d(2)]
         for i in range(len(hidden_size) - 1):
-            blocks.extend([nn.DSConv2D(hidden_size[i], hidden_size[i + 1], 3, 1, 1),
+            blocks.extend([DSConv2D(hidden_size[i], hidden_size[i + 1], 3, 1, 1),
                            nn.BatchNorm2d(hidden_size[i + 1]),
                            nn.ReLU(inplace=True),
                            nn.MaxPool2d(2)])
@@ -64,7 +64,7 @@ class DSCNN(nn.Module):
 def dscnn():
     data_shape = cfg['data_shape']
     target_size = cfg['target_size']
-    hidden_size = cfg['cnn']['hidden_size']
+    hidden_size = cfg['dscnn']['hidden_size']
     model = DSCNN(data_shape, hidden_size, target_size)
     model.apply(init_param)
     return model

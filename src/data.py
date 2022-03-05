@@ -23,7 +23,9 @@ def fetch_dataset(data_name):
         cfg['n_fft'] = round(0.04 * dataset['train'].sr)
         cfg['hop_length'] = round(0.02 * dataset['train'].sr)
         cfg['background_noise'] = dataset['train'].background_noise
-        if cfg['aug'] == 'basic':
+        if cfg['aug'] == 'plain':
+            train_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
+        elif cfg['aug'] == 'basic':
             train_transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
                                                    cfg['background_noise'])
         elif cfg['aug'] == 'basic-spec':

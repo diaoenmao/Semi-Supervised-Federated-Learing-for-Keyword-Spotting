@@ -12,7 +12,9 @@ class LSTM(nn.Module):
         self.linear = nn.Linear(hidden_size, target_size)
 
     def f(self, x):
-        x = self.lstm(x)
+        x = x.squeeze(1).permute(0, 2, 1)
+        x, _ = self.lstm(x)
+        x = x[:, -1]
         x = self.dropout(x)
         x = self.linear(x)
         return x

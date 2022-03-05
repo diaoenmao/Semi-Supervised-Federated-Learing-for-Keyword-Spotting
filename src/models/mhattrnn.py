@@ -9,27 +9,30 @@ class MHAttRNN(nn.Module):
         super().__init__()
         self.num_heads = num_heads
         self.cnn = nn.Sequential(
-            nn.Conv2d(data_shape[0], hidden_size, (5, 1), stride=(1, 1)),
-            nn.BatchNorm2d(10),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(hidden_size, 1, (5, 1), stride=(1, 1)),
+            nn.Conv2d(data_shape[1], hidden_size, (1, 3), stride=1, padding=(0, 1)),
             nn.BatchNorm2d(hidden_size),
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(2),
+            nn.Conv2d(hidden_size, 1, (1, 3), stride=1, padding=(0, 1)),
+            nn.BatchNorm2d(1),
+            nn.ReLU(inplace=True),
         )
         self.rnn = nn.GRU(1, hidden_size, num_layers=2, bidirectional=True, batch_first=True)
-        self.mhatt = nn.MultiheadAttention(embed_dim=hidden_size, num_heads=num_heads, dropout=dropout)
+        self.mhatt = nn.MultiheadAttention(embed_dim=2 * hidden_size, num_heads=num_heads, dropout=dropout,
+                                           batch_first=True)
         self.linear = nn.Linear(hidden_size, target_size)
 
     def f(self, x):
+        x = x.permute(0, 2, 1, 3)
         x = self.cnn(x)
-        x = x.reshape(x.size(0), -1, x.size(1))
+        x = x.reshape(x.size(0), -1, x.size(-1)).permute(0, 2, 1)
         x, _ = self.rnn(x)
+        x = x[:, [x.size(1) // 2], :]
         x, _ = self.mhatt(x, x, x)
-        x = self.fc(x)
+        x = x.squeeze(1)
+        x = self.linear(x)
         return x
 
-    def forward(self, x):
+    def forward(self, input):
         output = {}
         output['target'] = self.f(input['data'])
         if 'loss_mode' in input:

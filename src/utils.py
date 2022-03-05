@@ -122,22 +122,36 @@ def process_control():
     cfg['aug'] = cfg['control']['aug']
     data_shape = {'SpeechCommandsV1': [1, 40, 51], 'SpeechCommandsV2': [1, 40, 51]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
-    cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
+    cfg['cnn'] = {'hidden_size': [64, 128, 256, 512]}
+    cfg['dscnn'] = {'hidden_size': [64, 128, 256, 512]}
+    cfg['lstm'] = {'hidden_size': 128, 'num_layers': 2}
     cfg['resnet9'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['resnet18'] = {'hidden_size': [64, 128, 256, 512]}
+    cfg['tcresnet9'] = {'hidden_size': [64, 128, 256, 512]}
+    cfg['tcresnet18'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['wresnet28x2'] = {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}
     cfg['wresnet28x8'] = {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}
+    cfg['wresnet28x8'] = {'depth': 37, 'widen_factor': 2, 'drop_rate': 0.0}
+    cfg['mhattrnn'] = {'hidden_size': 256, 'num_heads': 4, 'dropout': 0.1}
     cfg['threshold'] = 0.95
     cfg['alpha'] = 0.75
     model_name = cfg['model_name']
-    cfg[model_name]['shuffle'] = {'train': False, 'test': False}
-    cfg[model_name]['optimizer_name'] = 'SGD'
-    cfg[model_name]['lr'] = 3e-2
-    cfg[model_name]['momentum'] = 0.9
-    cfg[model_name]['weight_decay'] = 5e-4
-    cfg[model_name]['nesterov'] = True
-    cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
-    cfg[model_name]['num_epochs'] = 400
+    cfg[model_name]['shuffle'] = {'train': True, 'test': False}
+    if model_name in ['lstm', 'mhattrnn']:
+        cfg[model_name]['optimizer_name'] = 'Adam'
+        cfg[model_name]['lr'] = 1e-3
+        cfg[model_name]['weight_decay'] = 5e-4
+        cfg[model_name]['scheduler_name'] = 'None'
+        cfg[model_name]['num_epochs'] = 400
+        cfg[model_name]['betas'] = (0.9, 0.999)
+    else:
+        cfg[model_name]['optimizer_name'] = 'SGD'
+        cfg[model_name]['lr'] = 3e-2
+        cfg[model_name]['momentum'] = 0.9
+        cfg[model_name]['weight_decay'] = 5e-4
+        cfg[model_name]['nesterov'] = True
+        cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
+        cfg[model_name]['num_epochs'] = 400
     cfg[model_name]['batch_size'] = {'train': 250, 'test': 250}
     torch.set_num_threads(4)
     cfg['stats'] = make_stats()

@@ -72,6 +72,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def f(self, x):
+        x = x.permute(0, 2, 1, 3)
         x = self.conv1(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -85,7 +86,7 @@ class ResNet(nn.Module):
 
     def forward(self, input):
         output = {}
-        output['target'] = self.f(input['data'].permute(0, 2, 1, 3))
+        output['target'] = self.f(input['data'])
         if 'loss_mode' in input:
             if input['loss_mode'] == 'sup':
                 output['loss'] = loss_fn(output['target'], input['target'])
