@@ -11,7 +11,7 @@ from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
 
 
-def fetch_dataset(data_name):
+def fetch_dataset(data_name, aug='plain'):
     import datasets
     dataset = {}
     print('fetching data {}...'.format(data_name))
@@ -19,28 +19,8 @@ def fetch_dataset(data_name):
     if data_name in ['SpeechCommandsV1', 'SpeechCommandsV2']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\')'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\')'.format(data_name))
-        cfg['data_length'] = 1 * dataset['train'].sr
-        cfg['n_fft'] = round(0.04 * dataset['train'].sr)
-        cfg['hop_length'] = round(0.02 * dataset['train'].sr)
-        cfg['background_noise'] = dataset['train'].background_noise
-        if cfg['aug'] == 'plain':
-            train_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
-        elif cfg['aug'] == 'basic':
-            train_transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                   cfg['background_noise'])
-        elif cfg['aug'] == 'basic-spec':
-            train_transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                        cfg['background_noise'])
-        elif cfg['aug'] == 'basic-spec-ps':
-            train_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                           cfg['background_noise'])
-        elif cfg['aug'] == 'basic-spec-ps-rand':
-            train_transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                           cfg['background_noise'])
-        else:
-            raise ValueError('Not valid aug')
-        plain_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
-        test_transform = plain_transform
+        train_transform = make_transform(aug)
+        test_transform = make_transform('plain')
         dataset['train'].transform = datasets.Compose(
             [*train_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
         dataset['test'].transform = datasets.Compose(
@@ -181,6 +161,7 @@ def separate_dataset_semi(dataset, supervised_idx=None):
     unsup_dataset = separate_dataset(dataset, unsupervised_idx)
     return sup_dataset, unsup_dataset, supervised_idx
 
+
 def make_batchnorm_dataset_su(server_dataset, client_dataset):
     batchnorm_dataset = copy.deepcopy(server_dataset)
     batchnorm_dataset.data = batchnorm_dataset.data + client_dataset.data
@@ -209,6 +190,33 @@ def make_batchnorm_stats(dataset, model, tag):
             test_model(input)
         dataset.transform = _transform
     return test_model
+
+
+def make_transform(mode):
+    if mode == 'plain':
+        transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
+    elif mode == 'basic':
+        transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                         cfg['background_noise'])
+    elif mode == 'basic-spec':
+        transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                              cfg['background_noise'])
+    elif mode == 'basic-spec-ps':
+        transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                 cfg['background_noise'])
+    elif mode == 'basic-spec-ps-rand':
+        transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                                 cfg['background_noise'])
+    elif mode == 'fix' or mode == 'fix-mix':
+        transform = make_fix_transform()
+    else:
+        raise ValueError('Not valid aug')
+    return transform
+
+
+def make_fix_transform():
+    transform = FixTransform()
+    return transform
 
 
 def make_plain_transform(data_length, n_fft, hop_length):
@@ -295,6 +303,18 @@ def make_basic_spec_ps_rand_transform(data_length, n_fft, hop_length, background
                                     datasets.randaugment.RandAugment(n=2, m=10),
                                     torchvision.transforms.ToTensor()]
     return basic_spec_ps_rand_transform
+
+
+class FixTransform(object):
+    def __init__(self):
+        self.weak = make_transform(cfg['sup_aug'])
+        self.strong = make_transform(cfg['unsup_aug'])
+
+    def __call__(self, input):
+        data = self.weak(input['data'])
+        aug = self.strong(input['data'])
+        input = {**input, 'data': data, 'aug': aug}
+        return input
 
 
 class MixDataset(Dataset):

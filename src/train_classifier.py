@@ -37,7 +37,7 @@ def runExperiment():
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
-    dataset = fetch_dataset(cfg['data_name'])
+    dataset = fetch_dataset(cfg['data_name'], cfg['sup_aug'])
     process_dataset(dataset)
     dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'])
     data_loader = make_data_loader(dataset, cfg['model_name'])
@@ -58,8 +58,6 @@ def runExperiment():
     else:
         last_epoch = 1
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
-    if cfg['world_size'] > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
@@ -89,7 +87,6 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         input = to_device(input, cfg['device'])
         optimizer.zero_grad()
         output = model(input)
-        output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
         output['loss'].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
@@ -118,7 +115,6 @@ def test(data_loader, model, metric, logger, epoch):
             input_size = input['data'].size(0)
             input = to_device(input, cfg['device'])
             output = model(input)
-            output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(metric.metric_name['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}

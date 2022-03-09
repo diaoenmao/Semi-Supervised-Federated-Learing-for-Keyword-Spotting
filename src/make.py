@@ -46,28 +46,36 @@ def main():
     filename = '{}_{}'.format(run, mode)
     if mode == 'fs':
         script_name = [['{}_classifier.py'.format(run)]]
-        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['fs']]]
+        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['fs'],
+                         ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'ps':
         script_name = [['{}_classifier.py'.format(run)]]
-        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['250', '4000']]]
+        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'],
+                         ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'semi':
+        script_name = [['{}_classifier_semi.py'.format(run)]]
+        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'],
+                         ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
+                         ['fix-mix']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'cd':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]
         control_name = [
-            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['250', '4000'], ['fix-mix'], ['100'], ['0.1'],
+            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'], ['fix-mix'], ['100'], ['0.1'],
              ['iid', 'non-iid-l-2']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'ub':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]
         control_name = [
-            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['250', '4000'], ['fix-mix'], ['100'], ['0.1'],
+            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'], ['fix-mix'], ['100'], ['0.1'],
              ['non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'loss':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]
         control_name = [
-            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['250', '4000'], ['fix'], ['100'], ['0.1'],
+            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'], ['fix'], ['100'], ['0.1'],
              ['iid', 'non-iid-l-2']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'fl':

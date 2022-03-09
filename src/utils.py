@@ -109,7 +109,10 @@ def recur(fn, input, *args):
 def process_dataset(dataset):
     cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['train'])}
     cfg['target_size'] = dataset['train'].target_size
-    cfg['batch_ratio'] = 0.05
+    cfg['data_length'] = 1 * dataset['train'].sr
+    cfg['n_fft'] = round(0.04 * dataset['train'].sr)
+    cfg['hop_length'] = round(0.02 * dataset['train'].sr)
+    cfg['background_noise'] = dataset['train'].background_noise
     return
 
 
@@ -119,7 +122,10 @@ def process_control():
     if cfg['control']['num_supervised'] == 'fs':
         cfg['control']['num_supervised'] = '-1'
     cfg['num_supervised'] = int(cfg['control']['num_supervised'])
-    cfg['aug'] = cfg['control']['aug']
+    aug_list = cfg['control']['aug'].split('=')
+    cfg['sup_aug'] = aug_list[0]
+    if len(aug_list) > 1:
+        cfg['unsup_aug'] = aug_list[1]
     data_shape = {'SpeechCommandsV1': [1, 40, 51], 'SpeechCommandsV2': [1, 40, 51]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['cnn'] = {'hidden_size': [64, 128, 256, 512]}
@@ -134,6 +140,7 @@ def process_control():
     cfg['wresnet28x8'] = {'depth': 37, 'widen_factor': 2, 'drop_rate': 0.0}
     cfg['mhattrnn'] = {'hidden_size': 256, 'num_heads': 4, 'dropout': 0.1}
     cfg['threshold'] = 0.95
+    cfg['sup_ratio'] = 0.05
     cfg['alpha'] = 0.75
     model_name = cfg['model_name']
     cfg[model_name]['shuffle'] = {'train': True, 'test': False}
@@ -238,18 +245,16 @@ def make_scheduler(optimizer, tag):
 
 
 def resume(model_tag, load_tag='checkpoint', verbose=True):
-    if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
-        result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+    if cfg['resume_mode'] == 1:
+        if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
+            result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+            if verbose:
+                print('Resume from {}'.format(result['epoch']))
+        else:
+            print('Not exists model tag: {}, start from scratch'.format(model_tag))
+            result = None
     else:
-        print('Not exists model tag: {}, start from scratch'.format(model_tag))
-        from datetime import datetime
-        from logger import Logger
-        last_epoch = 1
-        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], datetime.now().strftime('%b%d_%H-%M-%S'))
-        logger = Logger(logger_path)
-        result = {'epoch': last_epoch, 'logger': logger}
-    if verbose:
-        print('Resume from {}'.format(result['epoch']))
+        result = None
     return result
 
 
