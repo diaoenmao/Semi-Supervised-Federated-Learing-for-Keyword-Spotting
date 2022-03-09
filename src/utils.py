@@ -107,12 +107,8 @@ def recur(fn, input, *args):
 
 
 def process_dataset(dataset):
-    cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['train'])}
+    cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
     cfg['target_size'] = dataset['train'].target_size
-    cfg['data_length'] = 1 * dataset['train'].sr
-    cfg['n_fft'] = round(0.04 * dataset['train'].sr)
-    cfg['hop_length'] = round(0.02 * dataset['train'].sr)
-    cfg['background_noise'] = dataset['train'].background_noise
     return
 
 
@@ -126,6 +122,8 @@ def process_control():
     cfg['sup_aug'] = aug_list[0]
     if len(aug_list) > 1:
         cfg['unsup_aug'] = aug_list[1]
+    if 'loss_mode' in cfg['control']:
+        cfg['loss_mode'] = cfg['control']['loss_mode']
     data_shape = {'SpeechCommandsV1': [1, 40, 51], 'SpeechCommandsV2': [1, 40, 51]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['cnn'] = {'hidden_size': [64, 128, 256, 512]}
@@ -140,7 +138,7 @@ def process_control():
     cfg['wresnet28x8'] = {'depth': 37, 'widen_factor': 2, 'drop_rate': 0.0}
     cfg['mhattrnn'] = {'hidden_size': 256, 'num_heads': 4, 'dropout': 0.1}
     cfg['threshold'] = 0.95
-    cfg['sup_ratio'] = 0.05
+    cfg['unsup_ratio'] = 7
     cfg['alpha'] = 0.75
     model_name = cfg['model_name']
     cfg[model_name]['shuffle'] = {'train': True, 'test': False}

@@ -5,6 +5,7 @@ import torchaudio
 import torchvision
 import numpy as np
 import models
+import datasets
 from config import cfg
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
@@ -12,19 +13,22 @@ from utils import collate, to_device
 
 
 def fetch_dataset(data_name, aug='plain'):
-    import datasets
     dataset = {}
     print('fetching data {}...'.format(data_name))
     root = os.path.join('data', data_name)
     if data_name in ['SpeechCommandsV1', 'SpeechCommandsV2']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\')'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\')'.format(data_name))
+        cfg['data_length'] = 1 * dataset['train'].sr
+        cfg['n_fft'] = round(0.04 * dataset['train'].sr)
+        cfg['hop_length'] = round(0.02 * dataset['train'].sr)
+        cfg['background_noise'] = dataset['train'].background_noise
         train_transform = make_transform(aug)
         test_transform = make_transform('plain')
         dataset['train'].transform = datasets.Compose(
-            [*train_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
+            [train_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
         dataset['test'].transform = datasets.Compose(
-            [*test_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
+            [test_transform, torchvision.transforms.Normalize(*cfg['stats'][data_name])])
     else:
         raise ValueError('Not valid dataset name')
     print('data ready')
@@ -208,19 +212,18 @@ def make_transform(mode):
         transform = make_basic_spec_ps_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
                                                  cfg['background_noise'])
     elif mode == 'fix' or mode == 'fix-mix':
-        transform = make_fix_transform()
+        transform = make_fix_transform(cfg['data_name'])
     else:
         raise ValueError('Not valid aug')
     return transform
 
 
-def make_fix_transform():
-    transform = FixTransform()
+def make_fix_transform(data_name):
+    transform = FixTransform(data_name)
     return transform
 
 
 def make_plain_transform(data_length, n_fft, hop_length):
-    import datasets
     n_stft = n_fft // 2 + 1
     plain_transform = [datasets.transforms.CenterCropPad(data_length),
                        torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
@@ -229,11 +232,11 @@ def make_plain_transform(data_length, n_fft, hop_length):
                        torchaudio.transforms.AmplitudeToDB('power', 80),
                        datasets.transforms.SpectoImage(),
                        torchvision.transforms.ToTensor()]
+    plain_transform = torchvision.transforms.Compose(plain_transform)
     return plain_transform
 
 
 def make_basic_transform(data_length, n_fft, hop_length, background_noise):
-    import datasets
     n_stft = n_fft // 2 + 1
     basic_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                        datasets.transforms.CenterCropPad(data_length),
@@ -245,11 +248,11 @@ def make_basic_transform(data_length, n_fft, hop_length, background_noise):
                        torchaudio.transforms.AmplitudeToDB('power', 80),
                        datasets.transforms.SpectoImage(),
                        torchvision.transforms.ToTensor()]
+    basic_transform = torchvision.transforms.Compose(basic_transform)
     return basic_transform
 
 
 def make_basic_spec_transform(data_length, n_fft, hop_length, background_noise):
-    import datasets
     n_stft = n_fft // 2 + 1
     basic_spec_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                             datasets.transforms.CenterCropPad(data_length),
@@ -263,11 +266,11 @@ def make_basic_spec_transform(data_length, n_fft, hop_length, background_noise):
                             torchaudio.transforms.AmplitudeToDB('power', 80),
                             datasets.transforms.SpectoImage(),
                             torchvision.transforms.ToTensor()]
+    basic_spec_transform = torchvision.transforms.Compose(basic_spec_transform)
     return basic_spec_transform
 
 
 def make_basic_spec_ps_transform(data_length, n_fft, hop_length, background_noise):
-    import datasets
     n_stft = n_fft // 2 + 1
     basic_spec_ps_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                                datasets.transforms.CenterCropPad(data_length),
@@ -282,11 +285,11 @@ def make_basic_spec_ps_transform(data_length, n_fft, hop_length, background_nois
                                torchaudio.transforms.AmplitudeToDB('power', 80),
                                datasets.transforms.SpectoImage(),
                                torchvision.transforms.ToTensor()]
+    basic_spec_ps_transform = torchvision.transforms.Compose(basic_spec_ps_transform)
     return basic_spec_ps_transform
 
 
 def make_basic_spec_ps_rand_transform(data_length, n_fft, hop_length, background_noise):
-    import datasets
     n_stft = n_fft // 2 + 1
     basic_spec_ps_rand_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                                     datasets.transforms.CenterCropPad(data_length),
@@ -302,17 +305,21 @@ def make_basic_spec_ps_rand_transform(data_length, n_fft, hop_length, background
                                     datasets.transforms.SpectoImage(),
                                     datasets.randaugment.RandAugment(n=2, m=10),
                                     torchvision.transforms.ToTensor()]
+    basic_spec_ps_rand_transform = torchvision.transforms.Compose(basic_spec_ps_rand_transform)
     return basic_spec_ps_rand_transform
 
 
-class FixTransform(object):
-    def __init__(self):
-        self.weak = make_transform(cfg['sup_aug'])
-        self.strong = make_transform(cfg['unsup_aug'])
+class FixTransform(torch.nn.Module):
+    def __init__(self, data_name):
+        super().__init__()
+        self.weak = datasets.Compose(
+            [make_transform(cfg['sup_aug']), torchvision.transforms.Normalize(*cfg['stats'][data_name])])
+        self.strong = datasets.Compose(
+            [make_transform(cfg['unsup_aug']), torchvision.transforms.Normalize(*cfg['stats'][data_name])])
 
-    def __call__(self, input):
-        data = self.weak(input['data'])
-        aug = self.strong(input['data'])
+    def forward(self, input):
+        data = self.weak({'data': input['data']})['data']
+        aug = self.strong({'data': input['data']})['data']
         input = {**input, 'data': data, 'aug': aug}
         return input
 
