@@ -10,10 +10,10 @@ parser.add_argument('--round', default=4, type=int)
 parser.add_argument('--experiment_step', default=1, type=int)
 parser.add_argument('--num_experiments', default=1, type=int)
 parser.add_argument('--resume_mode', default=0, type=int)
-parser.add_argument('--data', default=None, type=str)
-parser.add_argument('--model', default=None, type=str)
 parser.add_argument('--mode', default=None, type=str)
 parser.add_argument('--split_round', default=65535, type=int)
+parser.add_argument('--data', default=None, type=str)
+parser.add_argument('--model', default=None, type=str)
 args = vars(parser.parse_args())
 
 
@@ -38,6 +38,8 @@ def main():
     resume_mode = args['resume_mode']
     mode = args['mode']
     split_round = args['split_round']
+    data = args['data']
+    model = args['model']
     gpu_ids = [','.join(str(i) for i in list(range(x, x + world_size))) for x in list(range(0, num_gpus, world_size))]
     init_seeds = [list(range(init_seed, init_seed + num_experiments, experiment_step))]
     world_size = [[world_size]]
@@ -46,43 +48,57 @@ def main():
     filename = '{}_{}'.format(run, mode)
     if mode == 'fs':
         script_name = [['{}_classifier.py'.format(run)]]
-        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['fs'],
+        control_name = [[[data], [model], ['fs'],
                          ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'ps':
         script_name = [['{}_classifier.py'.format(run)]]
-        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'],
+        control_name = [[[data], [model], ['200', '3000'],
                          ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'semi':
         script_name = [['{}_classifier_semi.py'.format(run)]]
-        control_name = [[['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'],
+        control_name = [[[data], [model], ['200', '3000'],
                          ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
                          ['fix-mix']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
-    elif mode == 'cd':
-        script_name = [['{}_classifier_ssfl.py'.format(run)]]
-        control_name = [
-            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'], ['fix-mix'], ['100'], ['0.1'],
-             ['iid', 'non-iid-l-2']]]
+    elif mode == 'semi-loss':
+        script_name = [['{}_classifier_semi.py'.format(run)]]
+        control_name = [[[data], [model], ['200', '3000'],
+                         ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
+                         ['fix']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
-    elif mode == 'ub':
-        script_name = [['{}_classifier_ssfl.py'.format(run)]]
-        control_name = [
-            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'], ['fix-mix'], ['100'], ['0.1'],
-             ['non-iid-d-0.1', 'non-iid-d-0.3']]]
-        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
-    elif mode == 'loss':
-        script_name = [['{}_classifier_ssfl.py'.format(run)]]
-        control_name = [
-            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['200', '3000'], ['fix'], ['100'], ['0.1'],
-             ['iid', 'non-iid-l-2']]]
-        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
-    elif mode == 'fl':
+    elif mode == 'fl-cd':
         script_name = [['{}_classifier_fl.py'.format(run)]]
         control_name = [
-            [['SpeechCommandsV1', 'SpeechCommandsV2'], ['wresnet28x2'], ['fs'], ['sup'], ['100'], ['0.1'],
-             ['iid', 'non-iid-d-0.1', 'non-iid-d-0.3', 'non-iid-l-2']]]
+            [[data], [model], ['fs'],
+             ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand'], ['sup'], ['100'],
+             ['0.1'], ['iid', 'non-iid-l-2']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'fl-ub':
+        script_name = [['{}_classifier_fl.py'.format(run)]]
+        control_name = [
+            [[data], [model], ['fs'],
+             ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand'], ['sup'], ['100'],
+             ['0.1'], ['non-iid-d-0.1', 'non-iid-d-0.3']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'ssfl-cd':
+        script_name = [['{}_classifier_ssfl.py'.format(run)]]
+        control_name = [
+            [[data], [model], ['200', '3000'], ['fix-mix'], ['100'], ['0.1'],
+             ['iid', 'non-iid-l-2']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'ssfl-ub':
+        script_name = [['{}_classifier_ssfl.py'.format(run)]]
+        control_name = [
+            [[data], [model], ['200', '3000'], ['fix-mix'], ['100'], ['0.1'],
+             ['non-iid-d-0.1', 'non-iid-d-0.3']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'ssfl-cd-loss':
+        script_name = [['{}_classifier_ssfl.py'.format(run)]]
+        control_name = [
+            [[data], [model], ['200', '3000'], ['fix'], ['100'], ['0.1'],
+             ['iid', 'non-iid-l-2']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     else:
         raise ValueError('Not valid mode')

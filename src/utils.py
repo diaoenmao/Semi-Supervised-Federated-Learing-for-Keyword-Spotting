@@ -158,6 +158,37 @@ def process_control():
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
         cfg[model_name]['num_epochs'] = 400
     cfg[model_name]['batch_size'] = {'train': 250, 'test': 250}
+    if 'num_clients' in cfg['control']:
+        cfg['num_clients'] = int(cfg['control']['num_clients'])
+        cfg['active_rate'] = float(cfg['control']['active_rate'])
+        cfg['data_split_mode'] = cfg['control']['data_split_mode']
+        cfg['local_epoch'] = 5
+        cfg['server'] = {}
+        cfg['server']['shuffle'] = {'train': True, 'test': False}
+        if cfg['num_supervised'] > 200:
+            cfg['server']['batch_size'] = {'train': 250, 'test': 500}
+        else:
+            cfg['server']['batch_size'] = {'train': 10, 'test': 500}
+        cfg['client'] = {}
+        cfg['client']['shuffle'] = {'train': True, 'test': False}
+        cfg['client']['batch_size'] = {'train': 250, 'test': 500}
+        cfg['local'] = {}
+        cfg['local']['optimizer_name'] = 'SGD'
+        cfg['local']['lr'] = 3e-2
+        cfg['local']['momentum'] = 0.9
+        cfg['local']['weight_decay'] = 5e-4
+        cfg['local']['nesterov'] = True
+        cfg['local']['num_epochs'] = 5
+        cfg['global'] = {}
+        cfg['global']['batch_size'] = {'train': 250, 'test': 500}
+        cfg['global']['shuffle'] = {'train': True, 'test': False}
+        cfg['global']['num_epochs'] = 800
+        cfg['global']['optimizer_name'] = 'SGD'
+        cfg['global']['lr'] = 1
+        cfg['global']['momentum'] = 0
+        cfg['global']['weight_decay'] = 0
+        cfg['global']['nesterov'] = False
+        cfg['global']['scheduler_name'] = 'CosineAnnealingLR'
     torch.set_num_threads(4)
     cfg['stats'] = make_stats()
     return

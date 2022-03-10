@@ -8,8 +8,8 @@ import torch
 import torch.backends.cudnn as cudnn
 import numpy as np
 from config import cfg, process_args
-from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset, separate_dataset_su, \
-    make_batchnorm_dataset_su, make_batchnorm_stats
+from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset, separate_dataset_semi, \
+    make_batchnorm_stats
 from metrics import Metric
 from modules import Server, Client
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
@@ -41,6 +41,7 @@ def runExperiment():
     torch.cuda.manual_seed(cfg['seed'])
     dataset = fetch_dataset(cfg['data_name'])
     process_dataset(dataset)
+    dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'])
     data_loader = make_data_loader(dataset, 'global')
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     optimizer = make_optimizer(model, 'local')
@@ -48,25 +49,20 @@ def runExperiment():
     batchnorm_dataset = dataset['train']
     data_split = split_dataset(dataset, cfg['num_clients'], cfg['data_split_mode'])
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-    if cfg['resume_mode'] == 1:
-        result = resume(cfg['model_tag'])
-        last_epoch = result['epoch']
-        if last_epoch > 1:
-            data_split = result['data_split']
-            server = result['server']
-            client = result['client']
-            optimizer.load_state_dict(result['optimizer_state_dict'])
-            scheduler.load_state_dict(result['scheduler_state_dict'])
-            logger = result['logger']
-        else:
-            server = make_server(model)
-            client = make_client(model, data_split)
-            logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
-    else:
+    result = resume(cfg['model_tag'])
+    if result is None:
         last_epoch = 1
         server = make_server(model)
         client = make_client(model, data_split)
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+    else:
+        last_epoch = result['epoch']
+        data_split = result['data_split']
+        server = result['server']
+        client = result['client']
+        optimizer.load_state_dict(result['optimizer_state_dict'])
+        scheduler.load_state_dict(result['scheduler_state_dict'])
+        logger = result['logger']
     for epoch in range(last_epoch, cfg['global']['num_epochs'] + 1):
         train_client(dataset['train'], server, client, optimizer, metric, logger, epoch)
         server.update(client)
@@ -144,7 +140,6 @@ def test(data_loader, model, metric, logger, epoch):
             input_size = input['data'].size(0)
             input = to_device(input, cfg['device'])
             output = model(input)
-            output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(metric.metric_name['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}

@@ -42,28 +42,24 @@ def runExperiment():
     dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'])
     data_loader = make_data_loader(dataset, cfg['model_name'])
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     optimizer = make_optimizer(model, cfg['model_name'])
     scheduler = make_scheduler(optimizer, cfg['model_name'])
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-    if cfg['resume_mode'] == 1:
-        result = resume(cfg['model_tag'])
-        last_epoch = result['epoch']
-        if last_epoch > 1:
-            model.load_state_dict(result['model_state_dict'])
-            optimizer.load_state_dict(result['optimizer_state_dict'])
-            scheduler.load_state_dict(result['scheduler_state_dict'])
-            logger = result['logger']
-        else:
-            logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
-    else:
+    result = resume(cfg['model_tag'])
+    if result is None:
         last_epoch = 1
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+    else:
+        last_epoch = result['epoch']
+        model.load_state_dict(result['model_state_dict'])
+        optimizer.load_state_dict(result['optimizer_state_dict'])
+        scheduler.load_state_dict(result['scheduler_state_dict'])
+        logger = result['logger']
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
-        logger.safe(True)
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
         test(data_loader['test'], model, metric, logger, epoch)
         scheduler.step()
-        logger.safe(False)
         model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         result = {'cfg': cfg, 'epoch': epoch + 1, 'supervised_idx': supervised_idx,
                   'model_state_dict': model_state_dict, 'optimizer_state_dict': optimizer.state_dict(),
@@ -79,6 +75,7 @@ def runExperiment():
 
 
 def train(data_loader, model, optimizer, metric, logger, epoch):
+    logger.safe(True)
     model.train(True)
     start_time = time.time()
     for i, input in enumerate(data_loader):
@@ -104,10 +101,12 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
+    logger.safe(False)
     return
 
 
 def test(data_loader, model, metric, logger, epoch):
+    logger.safe(True)
     with torch.no_grad():
         model.train(False)
         for i, input in enumerate(data_loader):
@@ -120,6 +119,7 @@ def test(data_loader, model, metric, logger, epoch):
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         print(logger.write('test', metric.metric_name['test']))
+    logger.safe(False)
     return
 
 
