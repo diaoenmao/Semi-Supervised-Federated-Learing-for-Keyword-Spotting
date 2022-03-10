@@ -29,6 +29,23 @@ def make_batchnorm(m, momentum, track_running_stats):
     return m
 
 
+def make_loss(output, input):
+    if 'loss_mode' in input:
+        if input['loss_mode'] == 'sup':
+            loss = loss_fn(output['target'], input['target'])
+        elif input['loss_mode'] == 'fix':
+            loss = loss_fn(output['aug_target'], input['target'])
+        elif input['loss_mode'] == 'fix-mix':
+            loss = loss_fn(output['aug_target'], input['target'])
+            loss += input['lam'] * loss_fn(output['mix_target'], input['mix_target'][:, 0]) + (
+                    1 - input['lam']) * loss_fn(output['mix_target'], input['mix_target'][:, 1])
+        else:
+            raise ValueError('Not valid loss mode')
+    else:
+        loss = loss_fn(output['target'], input['target'])
+    return loss
+
+
 def loss_fn(output, target, reduction='mean'):
     if target.dtype == torch.int64:
         loss = F.cross_entropy(output, target, reduction=reduction)

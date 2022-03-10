@@ -319,8 +319,8 @@ class FixTransform(torch.nn.Module):
 
     def forward(self, input):
         data = self.weak({'data': input['data']})['data']
-        aug = self.strong({'data': input['data']})['data']
-        input = {**input, 'data': data, 'aug': aug}
+        aug_data = self.strong({'data': input['data']})['data']
+        input = {**input, 'data': data, 'aug_data': aug_data}
         return input
 
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .utils import init_param, make_batchnorm, loss_fn
+from .utils import init_param, make_loss
 from config import cfg
 
 
@@ -86,22 +86,11 @@ class ResNet(nn.Module):
     def forward(self, input):
         output = {}
         output['target'] = self.f(input['data'])
-        if 'loss_mode' in input:
-            if input['loss_mode'] == 'sup':
-                output['loss'] = loss_fn(output['target'], input['target'])
-            elif input['loss_mode'] == 'fix':
-                aug_output = self.f(input['aug'])
-                output['loss'] = loss_fn(aug_output, input['target'].detach())
-            elif input['loss_mode'] == 'fix-mix':
-                aug_output = self.f(input['aug'])
-                output['loss'] = loss_fn(aug_output, input['target'].detach())
-                mix_output = self.f(input['mix_data'])
-                output['loss'] += input['lam'] * loss_fn(mix_output, input['mix_target'][:, 0].detach()) + (
-                        1 - input['lam']) * loss_fn(mix_output, input['mix_target'][:, 1].detach())
-            else:
-                raise ValueError('Not valid loss mode')
-        else:
-            output['loss'] = loss_fn(output['target'], input['target'])
+        if 'aug' in input:
+            output['aug_target'] = self.f(input['aug_data'])
+        if 'mix_data' in input:
+            output['mix_target'] = self.f(input['mix_data'])
+        output['loss'] = make_loss(output, input)
         return output
 
 

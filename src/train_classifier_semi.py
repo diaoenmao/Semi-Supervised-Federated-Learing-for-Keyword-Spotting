@@ -63,7 +63,8 @@ def runExperiment():
     unsup_dataloader = make_data_loader({'train': unsup_dataset}, cfg['model_name'],
                                         batch_size={'train': cfg[cfg['model_name']]['batch_size']['train'] * cfg[
                                             'unsup_ratio']})
-    sup_sampler = SupSampler(len(unsup_dataloader['train']), cfg[cfg['model_name']]['batch_size']['train'], len(sup_dataset))
+    sup_sampler = SupSampler(len(unsup_dataloader['train']), cfg[cfg['model_name']]['batch_size']['train'],
+                             len(sup_dataset))
     sup_dataloader = make_data_loader({'train': sup_dataset}, cfg['model_name'], batch_sampler={'train': sup_sampler})
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         train(sup_dataloader['train'], unsup_dataloader['train'], model, optimizer, metric, logger, epoch)
@@ -85,10 +86,15 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
     logger.safe(True)
     model.train(True)
     start_time = time.time()
+    beta = torch.distributions.beta.Beta(torch.tensor([cfg['alpha']]), torch.tensor([cfg['alpha']]))
     for i, (sup_input, unsup_input) in enumerate(zip(sup_dataloader, unsup_dataloader)):
+        # Sup
         sup_input = collate(sup_input)
-        unsup_input = collate(unsup_input)
         sup_input = to_device(sup_input, cfg['device'])
+        input_size = sup_input['data'].size(0)
+        output = model(sup_input)
+        # Fix
+        unsup_input = collate(unsup_input)
         unsup_input = to_device(unsup_input, cfg['device'])
         with torch.no_grad():
             model.train(False)
@@ -96,13 +102,18 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
             buffer = torch.softmax(unsup_output_['target'], dim=-1)
             new_target, mask = make_hard_pseudo_label(buffer)
             unsup_input['target'] = new_target.detach()
-        input_size = sup_input['data'].size(0)
-        optimizer.zero_grad()
-        output = model(sup_input)
+        # Mix
+        if 'mix' in cfg['loss_mode']:
+            lam = beta.sample()[0]
+            unsup_input['lam'] = max(lam, (1 - lam))
+            unsup_input['mix_data'] = (unsup_input['lam'] * sup_input['data'] + (1 - unsup_input['lam']) * unsup_input[
+                'data']).detach()
+            unsup_input['mix_target'] = torch.stack([sup_input['target'], unsup_input['target']], dim=-1)
         if torch.any(mask):
             unsup_input['loss_mode'] = cfg['loss_mode']
             output_ = model(unsup_input)
             output['loss'] += output_['loss']
+        optimizer.zero_grad()
         output['loss'].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()

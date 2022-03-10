@@ -144,7 +144,7 @@ class Client:
                     mask = mask.tolist()
                     fix_dataset.data = list(compress(fix_dataset.data, mask))
                     fix_dataset.target = list(compress(fix_dataset.target, mask))
-                    fix_dataset.other = {'id': list(range(len(fix_dataset.data)))}
+                    fix_dataset.id = list(range(len(fix_dataset.data)))
                     if 'mix' in cfg['loss_mode']:
                         mix_dataset = copy.deepcopy(dataset)
                         mix_dataset.target = new_target.tolist()
@@ -216,11 +216,13 @@ class Client:
             model.train(True)
             for epoch in range(1, cfg['local']['num_epochs'] + 1):
                 for i, (fix_input, mix_input) in enumerate(zip(fix_data_loader, mix_data_loader)):
-                    input = {'data': fix_input['data'], 'target': fix_input['target'], 'aug': fix_input['aug'],
-                             'mix_data': mix_input['data'], 'mix_target': mix_input['target']}
+                    input = {'data': fix_input['data'], 'target': fix_input['target'],
+                             'aug_data': fix_input['aug_data'], 'mix_data': mix_input['data'],
+                             'mix_target': mix_input['target']}
                     input = collate(input)
                     input_size = input['data'].size(0)
-                    input['lam'] = self.beta.sample()[0]
+                    lam = self.beta.sample()[0]
+                    input['lam'] = max(lam, (1 - lam))
                     input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
                     input['mix_target'] = torch.stack([input['target'], input['mix_target']], dim=-1)
                     input['loss_mode'] = cfg['loss_mode']
