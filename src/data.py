@@ -174,25 +174,23 @@ def make_batchnorm_dataset_su(server_dataset, client_dataset):
     return batchnorm_dataset
 
 
-def make_dataset_normal(dataset):
-    _transform = dataset.transform
-    plain_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
+def make_batchnorm_dataset(dataset):
+    dataset = copy.deepcopy(dataset)
+    plain_transform = datasets.Compose([make_transform('plain')])
     dataset.transform = plain_transform
-    return dataset, _transform
+    return dataset
 
 
 def make_batchnorm_stats(dataset, model, tag):
     with torch.no_grad():
         test_model = copy.deepcopy(model)
         test_model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=True))
-        dataset, _transform = make_dataset_normal(dataset)
         data_loader = make_data_loader({'train': dataset}, tag, shuffle={'train': False})['train']
         test_model.train(True)
         for i, input in enumerate(data_loader):
             input = collate(input)
             input = to_device(input, cfg['device'])
             test_model(input)
-        dataset.transform = _transform
     return test_model
 
 

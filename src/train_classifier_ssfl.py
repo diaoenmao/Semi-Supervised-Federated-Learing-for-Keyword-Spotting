@@ -46,6 +46,7 @@ def runExperiment():
                                                                                            client_dataset['train'])
     data_loader = make_data_loader(server_dataset, 'global')
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     optimizer = make_optimizer(model, 'local')
     scheduler = make_scheduler(optimizer, 'global')
     if cfg['sbn'] == 1:

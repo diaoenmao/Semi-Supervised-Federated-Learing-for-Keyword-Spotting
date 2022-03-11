@@ -9,7 +9,7 @@ import torch.backends.cudnn as cudnn
 import numpy as np
 from config import cfg, process_args
 from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset, separate_dataset_semi, \
-    make_batchnorm_stats
+    make_batchnorm_dataset, make_batchnorm_stats
 from metrics import Metric
 from modules import Server, Client
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
@@ -44,9 +44,10 @@ def runExperiment():
     dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'])
     data_loader = make_data_loader(dataset, 'global')
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     optimizer = make_optimizer(model, 'local')
     scheduler = make_scheduler(optimizer, 'global')
-    batchnorm_dataset = dataset['train']
+    batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
     data_split = split_dataset(dataset, cfg['num_clients'], cfg['data_split_mode'])
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     result = resume(cfg['model_tag'])
