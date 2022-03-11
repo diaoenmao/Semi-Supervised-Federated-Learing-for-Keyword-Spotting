@@ -279,10 +279,8 @@ def resume(model_tag, load_tag='checkpoint', verbose=True, resume_mode=1):
         result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
         if verbose:
             print('Resume from {}'.format(result['epoch']))
-        else:
-            print('Not exists model tag: {}, start from scratch'.format(model_tag))
-            result = None
     else:
+        print('Not exists model tag: {}, start from scratch'.format(model_tag))
         result = None
     return result
 
