@@ -4,7 +4,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import models
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader, make_batchnorm_stats
+from data import fetch_dataset, make_data_loader, make_batchnorm_dataset, make_batchnorm_stats
 from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, resume, collate
 from logger import make_logger
@@ -37,9 +37,9 @@ def runExperiment():
     process_dataset(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
-    batchnorm_dataset = dataset['train']
+    batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
     metric = Metric({'test': ['Loss', 'Accuracy']})
-    result = resume(cfg['model_tag'], load_tag='best')
+    result = resume(cfg['model_tag'], load_tag='best', resume_mode=1)
     last_epoch = result['epoch']
     data_split = result['data_split']
     model.load_state_dict(result['server'].model_state_dict)

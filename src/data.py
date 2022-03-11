@@ -176,7 +176,8 @@ def make_batchnorm_dataset_su(server_dataset, client_dataset):
 
 def make_batchnorm_dataset(dataset):
     dataset = copy.deepcopy(dataset)
-    plain_transform = datasets.Compose([make_transform('plain')])
+    plain_transform = datasets.Compose(
+        [make_transform('plain'), torchvision.transforms.Normalize(*cfg['stats'][cfg['data_name']])])
     dataset.transform = plain_transform
     return dataset
 

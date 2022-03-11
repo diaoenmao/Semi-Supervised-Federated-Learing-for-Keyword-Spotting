@@ -11,7 +11,6 @@ import numpy as np
 from data import fetch_dataset, make_data_loader
 from utils import save, makedir_exist_ok, to_device, process_control, process_dataset, collate
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')
 for k in cfg:

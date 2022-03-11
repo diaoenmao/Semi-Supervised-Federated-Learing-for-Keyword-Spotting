@@ -36,9 +36,8 @@ def runExperiment():
     dataset = fetch_dataset(cfg['data_name'])
     process_dataset(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     metric = Metric({'test': ['Loss', 'Accuracy']})
-    result = resume(cfg['model_tag'], load_tag='best')
+    result = resume(cfg['model_tag'], load_tag='best', resume_mode=1)
     last_epoch = result['epoch']
     supervised_idx = result['supervised_idx']
     model.load_state_dict(result['model_state_dict'])

@@ -163,9 +163,10 @@ def process_control():
         cfg['active_rate'] = float(cfg['control']['active_rate'])
         cfg['data_split_mode'] = cfg['control']['data_split_mode']
         cfg['local_epoch'] = 5
+        cfg['gm'] = 0
         cfg['server'] = {}
         cfg['server']['shuffle'] = {'train': True, 'test': False}
-        if cfg['num_supervised'] > 200:
+        if cfg['num_supervised'] > 250:
             cfg['server']['batch_size'] = {'train': 250, 'test': 500}
         else:
             cfg['server']['batch_size'] = {'train': 10, 'test': 500}
@@ -185,7 +186,7 @@ def process_control():
         cfg['global']['num_epochs'] = 800
         cfg['global']['optimizer_name'] = 'SGD'
         cfg['global']['lr'] = 1
-        cfg['global']['momentum'] = 0
+        cfg['global']['momentum'] = cfg['gm']
         cfg['global']['weight_decay'] = 0
         cfg['global']['nesterov'] = False
         cfg['global']['scheduler_name'] = 'CosineAnnealingLR'
@@ -273,12 +274,11 @@ def make_scheduler(optimizer, tag):
     return scheduler
 
 
-def resume(model_tag, load_tag='checkpoint', verbose=True):
-    if cfg['resume_mode'] == 1:
-        if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
-            result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
-            if verbose:
-                print('Resume from {}'.format(result['epoch']))
+def resume(model_tag, load_tag='checkpoint', verbose=True, resume_mode=1):
+    if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)) and resume_mode == 1:
+        result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+        if verbose:
+            print('Resume from {}'.format(result['epoch']))
         else:
             print('Not exists model tag: {}, start from scratch'.format(model_tag))
             result = None

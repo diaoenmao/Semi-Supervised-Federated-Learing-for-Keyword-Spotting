@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import models
 from itertools import compress
 from config import cfg
-from data import make_data_loader, make_batchnorm_stats, FixTransform, MixDataset
+from data import make_data_loader, make_batchnorm_stats, MixDataset
 from utils import to_device, make_optimizer, collate
 from metrics import Accuracy
 

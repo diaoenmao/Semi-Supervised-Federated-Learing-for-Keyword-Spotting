@@ -42,11 +42,10 @@ def runExperiment():
     dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'])
     data_loader = make_data_loader(dataset, cfg['model_name'])
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     optimizer = make_optimizer(model, cfg['model_name'])
     scheduler = make_scheduler(optimizer, cfg['model_name'])
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-    result = resume(cfg['model_tag'])
+    result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
     if result is None:
         last_epoch = 1
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
@@ -60,9 +59,8 @@ def runExperiment():
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
         test(data_loader['test'], model, metric, logger, epoch)
         scheduler.step()
-        model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         result = {'cfg': cfg, 'epoch': epoch + 1, 'supervised_idx': supervised_idx,
-                  'model_state_dict': model_state_dict, 'optimizer_state_dict': optimizer.state_dict(),
+                  'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(),
                   'scheduler_state_dict': scheduler.state_dict(), 'logger': logger}
         save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
         if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):

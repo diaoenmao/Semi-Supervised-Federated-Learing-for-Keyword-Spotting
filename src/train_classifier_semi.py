@@ -47,8 +47,9 @@ def runExperiment():
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     optimizer = make_optimizer(model, cfg['model_name'])
     scheduler = make_scheduler(optimizer, cfg['model_name'])
-    metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-    result = resume(cfg['model_tag'])
+    metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
+                     'test': ['Loss', 'Accuracy']})
+    result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
     if result is None:
         last_epoch = 1
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
@@ -91,33 +92,48 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
         # Sup
         sup_input = collate(sup_input)
         sup_input = to_device(sup_input, cfg['device'])
-        input_size = sup_input['data'].size(0)
-        output = model(sup_input)
         # Fix
         unsup_input = collate(unsup_input)
         unsup_input = to_device(unsup_input, cfg['device'])
         with torch.no_grad():
+            output_, input_ = {}, {}
             model.train(False)
-            unsup_output_ = model(unsup_input)
-            buffer = torch.softmax(unsup_output_['target'], dim=-1)
-            new_target, mask = make_hard_pseudo_label(buffer)
+            unsup_output = model({'data': unsup_input['data']})
+            input_['target'] = unsup_input['target']
+            output_['target'] = torch.softmax(unsup_output['target'], dim=-1)
+            new_target, mask = make_hard_pseudo_label(output_['target'])
+            output_['mask'] = mask
+            evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
+            logger.append(evaluation, 'train', n=len(unsup_input['data']))
             unsup_input['target'] = new_target.detach()
-        # Mix
-        if 'mix' in cfg['loss_mode']:
-            lam = beta.sample()[0]
-            unsup_input['lam'] = max(lam, (1 - lam))
-            unsup_input['mix_data'] = (unsup_input['lam'] * sup_input['data'] + (1 - unsup_input['lam']) * unsup_input[
-                'data']).detach()
-            unsup_input['mix_target'] = torch.stack([sup_input['target'], unsup_input['target']], dim=-1)
         if torch.any(mask):
-            unsup_input['loss_mode'] = cfg['loss_mode']
-            output_ = model(unsup_input)
-            output['loss'] += output_['loss']
+            unsup_input['data'] = unsup_input['data'][mask]
+            unsup_input['target'] = unsup_input['target'][mask]
+            # Mix
+            if 'mix' in cfg['loss_mode']:
+                mix_size = min(len(sup_input['data']), len(unsup_input['data']))
+                lam = beta.sample()[0]
+                unsup_input['lam'] = max(lam, (1 - lam))
+                unsup_input['mix_data'] = (unsup_input['lam'] * sup_input['data'][:mix_size] +
+                                           (1 - unsup_input['lam']) * unsup_input['data'][:mix_size]).detach()
+                unsup_input['mix_target'] = torch.stack([sup_input['target'][:mix_size],
+                                                         unsup_input['target'][:mix_size]], dim=-1).detach()
+                input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['data'],
+                         'aug_target': unsup_input['target'], 'mix_data': unsup_input['mix_data'],
+                         'mix_target': unsup_input['mix_target']}
+            else:
+                input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['data'],
+                         'aug_target': unsup_input['target']}
+        else:
+            input = {'data': sup_input['data'], 'target': sup_input['target']}
+        input_size = input['data'].size(0)
+        input['loss_mode'] = cfg['loss_mode']
+        output = model(input)
         optimizer.zero_grad()
         output['loss'].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
-        evaluation = metric.evaluate(metric.metric_name['train'], sup_input, output)
+        evaluation = metric.evaluate(['Accuracy', 'Loss'], input, output)
         logger.append(evaluation, 'train', n=input_size)
         if i % int((len(sup_dataloader) * cfg['log_interval']) + 1) == 0:
             _time = (time.time() - start_time) / (i + 1)

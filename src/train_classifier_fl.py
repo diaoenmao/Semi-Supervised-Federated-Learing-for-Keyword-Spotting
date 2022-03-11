@@ -50,7 +50,7 @@ def runExperiment():
     batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
     data_split = split_dataset(dataset, cfg['num_clients'], cfg['data_split_mode'])
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-    result = resume(cfg['model_tag'])
+    result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
     if result is None:
         last_epoch = 1
         server = make_server(model)
