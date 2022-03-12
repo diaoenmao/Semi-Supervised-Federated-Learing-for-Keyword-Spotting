@@ -107,7 +107,7 @@ def recur(fn, input, *args):
 
 
 def process_dataset(dataset):
-    cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
+    cfg['data_size'] = {k: len(dataset[k]) for k in dataset}
     cfg['target_size'] = dataset['train'].target_size
     return
 
@@ -190,7 +190,7 @@ def process_control():
         cfg['global']['weight_decay'] = 0
         cfg['global']['nesterov'] = False
         cfg['global']['scheduler_name'] = 'CosineAnnealingLR'
-    torch.set_num_threads(4)
+    torch.set_num_threads(1)
     cfg['stats'] = make_stats()
     return
 

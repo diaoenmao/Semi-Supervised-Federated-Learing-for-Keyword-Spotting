@@ -17,9 +17,9 @@ class MHAttRNN(nn.Module):
             nn.ReLU(inplace=True),
         )
         self.rnn = nn.GRU(1, hidden_size, num_layers=2, bidirectional=True, batch_first=True)
-        self.mhatt = nn.MultiheadAttention(embed_dim=2 * hidden_size, num_heads=num_heads, dropout=dropout,
+        self.mhatt = nn.MultiheadAttention(embed_dim=hidden_size * 2, num_heads=num_heads, dropout=dropout,
                                            batch_first=True)
-        self.linear = nn.Linear(hidden_size, target_size)
+        self.linear = nn.Linear(hidden_size * 2, target_size)
 
     def f(self, x):
         x = x.permute(0, 2, 1, 3)
@@ -34,7 +34,8 @@ class MHAttRNN(nn.Module):
 
     def forward(self, input):
         output = {}
-        output['target'] = self.f(input['data'])
+        if 'data' in input:
+            output['target'] = self.f(input['data'])
         if 'aug' in input:
             output['aug_target'] = self.f(input['aug_data'])
         if 'mix_data' in input:

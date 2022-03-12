@@ -41,7 +41,8 @@ class DSCNN(nn.Module):
 
     def forward(self, input):
         output = {}
-        output['target'] = self.f(input['data'])
+        if 'data' in input:
+            output['target'] = self.f(input['data'])
         if 'aug' in input:
             output['aug_target'] = self.f(input['aug_data'])
         if 'mix_data' in input:

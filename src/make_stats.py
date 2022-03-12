@@ -2,8 +2,9 @@ import argparse
 import os
 import torch
 import torch.backends.cudnn as cudnn
+import datasets
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader, make_plain_transform
+from data import fetch_dataset, make_data_loader, make_transform
 from utils import save, process_control, process_dataset, collate, Stats, makedir_exist_ok
 
 cudnn.benchmark = True
@@ -18,7 +19,6 @@ stats_path = './res/stats'
 dim = 1
 
 if __name__ == "__main__":
-    import datasets
 
     process_control()
     cfg['seed'] = 0
@@ -28,12 +28,13 @@ if __name__ == "__main__":
             cfg['data_name'] = data_name
             root = os.path.join('data', cfg['data_name'])
             dataset = eval('datasets.{}(root=root, split=\'train\')'.format(cfg['data_name']))
+            process_dataset({'train': dataset})
             cfg['data_length'] = 1 * dataset.sr
             cfg['n_fft'] = round(0.04 * dataset.sr)
             cfg['hop_length'] = round(0.02 * dataset.sr)
             cfg['background_noise'] = dataset.background_noise
-            plain_transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
-            dataset.transform = datasets.Compose(plain_transform)
+            plain_transform = make_transform('plain')
+            dataset.transform = datasets.Compose([plain_transform])
             data_loader = make_data_loader({'train': dataset}, cfg['model_name'])
             stats = Stats(dim=dim)
             for i, input in enumerate(data_loader['train']):
