@@ -104,7 +104,7 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
             new_target, mask = make_hard_pseudo_label(output_['target'])
             output_['mask'] = mask
             evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
-            logger.append(evaluation, 'train', n=len(unsup_input['data']))
+            logger.append(evaluation, 'train', n=len(input_['target']))
             unsup_input['target'] = new_target.detach()
         if torch.any(mask):
             unsup_input['data'] = unsup_input['data'][mask]
@@ -113,14 +113,14 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
             if 'mix' in cfg['loss_mode']:
                 mix_size = min(len(sup_input['data']), len(unsup_input['data']))
                 lam = beta.sample()[0]
-                unsup_input['lam'] = max(lam, (1 - lam))
-                unsup_input['mix_data'] = (unsup_input['lam'] * sup_input['data'][:mix_size] +
-                                           (1 - unsup_input['lam']) * unsup_input['data'][:mix_size]).detach()
+                lam = max(lam, (1 - lam))
+                unsup_input['mix_data'] = (lam * sup_input['data'][:mix_size] +
+                                           (1 - lam) * unsup_input['data'][:mix_size]).detach()
                 unsup_input['mix_target'] = torch.stack([sup_input['target'][:mix_size],
                                                          unsup_input['target'][:mix_size]], dim=-1).detach()
                 input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['data'],
                          'aug_target': unsup_input['target'], 'mix_data': unsup_input['mix_data'],
-                         'mix_target': unsup_input['mix_target']}
+                         'mix_target': unsup_input['mix_target'], 'lam': lam}
             else:
                 input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['data'],
                          'aug_target': unsup_input['target']}

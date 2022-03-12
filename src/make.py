@@ -45,7 +45,7 @@ def main():
     world_size = [[world_size]]
     num_experiments = [[experiment_step]]
     resume_mode = [[resume_mode]]
-    filename = '{}_{}'.format(run, mode)
+    filename = '{}_{}_{}_{}'.format(run, mode, data, model)
     if mode == 'fs':
         script_name = [['{}_classifier.py'.format(run)]]
         control_name = [[[data], [model], ['fs'],

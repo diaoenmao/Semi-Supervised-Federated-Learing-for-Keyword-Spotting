@@ -10,7 +10,6 @@ from itertools import compress
 from config import cfg
 from data import make_data_loader, make_batchnorm_stats, MixDataset
 from utils import to_device, make_optimizer, collate
-from metrics import Accuracy
 
 
 class Server:
@@ -78,7 +77,7 @@ class Server:
                 output['loss'].backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                 optimizer.step()
-                evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+                evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
                 logger.append(evaluation, 'train', n=input_size)
         self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
         return
@@ -92,16 +91,14 @@ class Client:
         optimizer = make_optimizer(model, 'local')
         self.optimizer_state_dict = optimizer.state_dict()
         self.active = False
-        self.buffer = None
         self.beta = torch.distributions.beta.Beta(torch.tensor([cfg['alpha']]), torch.tensor([cfg['alpha']]))
-        self.verbose = cfg['verbose']
 
     def make_hard_pseudo_label(self, soft_pseudo_label):
         max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
         mask = max_p.ge(cfg['threshold'])
         return hard_pseudo_label, mask
 
-    def make_dataset(self, dataset):
+    def make_dataset(self, dataset, metric, logger):
         if 'sup' in cfg['loss_mode']:
             return dataset
         elif 'fix' in cfg['loss_mode']:
@@ -114,6 +111,7 @@ class Client:
                 output = []
                 target = []
                 for i, input in enumerate(data_loader):
+                    input = {'data': input['data'], 'target': input['target']}
                     input = collate(input)
                     input = to_device(input, cfg['device'])
                     output_ = model(input)
@@ -121,30 +119,21 @@ class Client:
                     target_i = input['target']
                     output.append(output_i.cpu())
                     target.append(target_i.cpu())
-                output = torch.cat(output, dim=0)
-                target = torch.cat(target, dim=0)
-                self.buffer = F.softmax(output, dim=-1)
-                acc = Accuracy(self.buffer, target)
-                new_target, mask = self.make_hard_pseudo_label(self.buffer)
-                if torch.all(~mask):
-                    if self.verbose:
-                        print('Model: {} Accuracy: {:.3f}, Number of Labeled: 0({})'.format(cfg['model_tag'], acc,
-                                                                                            len(output)))
-                    return None
-                else:
-                    new_acc = Accuracy(self.buffer[mask], target[mask])
-                    num_labeled = int(mask.float().sum())
-                    if self.verbose:
-                        print('Model: {} Accuracy: {:.3f} ({:.3f}), Number of Labeled: {}({})'.format(cfg['model_tag'],
-                                                                                                      acc, new_acc,
-                                                                                                      num_labeled,
-                                                                                                      len(output)))
+                output_, input_ = {}, {}
+                output_['target'] = torch.cat(output, dim=0)
+                input_['target'] = torch.cat(target, dim=0)
+                output_['target'] = F.softmax(output_['target'], dim=-1)
+                new_target, mask = self.make_hard_pseudo_label(output_['target'])
+                output_['mask'] = mask
+                evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
+                logger.append(evaluation, 'train', n=len(input_['target']))
+                if torch.any(mask):
                     fix_dataset = copy.deepcopy(dataset)
                     fix_dataset.target = new_target.tolist()
                     mask = mask.tolist()
                     fix_dataset.data = list(compress(fix_dataset.data, mask))
                     fix_dataset.target = list(compress(fix_dataset.target, mask))
-                    fix_dataset.id = list(range(len(fix_dataset.data)))
+                    fix_dataset.id = list(compress(fix_dataset.id, mask))
                     if 'mix' in cfg['loss_mode']:
                         mix_dataset = copy.deepcopy(dataset)
                         mix_dataset.target = new_target.tolist()
@@ -152,8 +141,10 @@ class Client:
                     else:
                         mix_dataset = None
                     return fix_dataset, mix_dataset
+                else:
+                    return None
         else:
-            raise ValueError('Not valid client loss mode')
+            raise ValueError('Not valid loss mode')
         return
 
     def train(self, dataset, lr, metric, logger):
@@ -192,16 +183,16 @@ class Client:
             model.train(True)
             for epoch in range(1, cfg['local']['num_epochs'] + 1):
                 for i, input in enumerate(fix_data_loader):
+                    input = {'aug_data': input['aug_data'], 'aug_target': input['aug_target']}
                     input = collate(input)
-                    input_size = input['data'].size(0)
-                    input['loss_mode'] = cfg['loss_mode']
+                    input_size = input['aug_data'].size(0)
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
                     output = model(input)
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
-                    evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
                     logger.append(evaluation, 'train', n=input_size)
         elif cfg['loss_mode'] == 'fix-mix':
             fix_dataset, mix_dataset = dataset
@@ -216,26 +207,25 @@ class Client:
             model.train(True)
             for epoch in range(1, cfg['local']['num_epochs'] + 1):
                 for i, (fix_input, mix_input) in enumerate(zip(fix_data_loader, mix_data_loader)):
-                    input = {'data': fix_input['data'], 'target': fix_input['target'],
-                             'aug_data': fix_input['aug_data'], 'mix_data': mix_input['data'],
-                             'mix_target': mix_input['target']}
-                    input = collate(input)
-                    input_size = input['data'].size(0)
+                    fix_input = collate(fix_input)
+                    mix_input = collate(mix_input)
                     lam = self.beta.sample()[0]
-                    input['lam'] = max(lam, (1 - lam))
-                    input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
-                    input['mix_target'] = torch.stack([input['target'], input['mix_target']], dim=-1)
-                    input['loss_mode'] = cfg['loss_mode']
+                    lam = max(lam, (1 - lam))
+                    fix_input['mix_data'] = (lam * fix_input['data'] + (1 - lam) * mix_input['mix_data']).detach()
+                    fix_input['mix_target'] = torch.stack([fix_input['target'], mix_input['mix_target']], dim=-1)
+                    input = {'aug_data': fix_input['aug_data'], 'aug_target': fix_input['target'],
+                             'mix_data': fix_input['mix_data'], 'mix_target': fix_input['mix_target']}
+                    input_size = input['aug_data'].size(0)
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
                     output = model(input)
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
-                    evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
                     logger.append(evaluation, 'train', n=input_size)
         else:
-            raise ValueError('Not valid client loss mode')
+            raise ValueError('Not valid loss mode')
         self.optimizer_state_dict = optimizer.state_dict()
         self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
         return
