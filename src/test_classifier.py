@@ -4,7 +4,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import models
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader, separate_dataset_semi
+from data import fetch_dataset, make_data_loader, separate_dataset_semi, make_batchnorm_dataset, make_batchnorm_stats
 from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, resume, collate
 from logger import make_logger
@@ -36,15 +36,18 @@ def runExperiment():
     dataset = fetch_dataset(cfg['data_name'])
     process_dataset(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     metric = Metric({'test': ['Loss', 'Accuracy']})
     result = resume(cfg['model_tag'], load_tag='best', resume_mode=1)
     last_epoch = result['epoch']
     supervised_idx = result['supervised_idx']
     model.load_state_dict(result['model_state_dict'])
     dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'], supervised_idx=supervised_idx)
+    batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
     data_loader = make_data_loader(dataset, cfg['model_name'])
     test_logger = make_logger(os.path.join('output', 'runs', 'test_{}'.format(cfg['model_tag'])))
-    test(data_loader['test'], model, metric, test_logger, last_epoch)
+    test_model = make_batchnorm_stats(batchnorm_dataset, model, cfg['model_name'])
+    test(data_loader['test'], test_model, metric, test_logger, last_epoch)
     result = resume(cfg['model_tag'], load_tag='checkpoint')
     train_logger = result['logger'] if 'logger' in result else None
     result = {'cfg': cfg, 'epoch': last_epoch, 'supervised_idx': supervised_idx,

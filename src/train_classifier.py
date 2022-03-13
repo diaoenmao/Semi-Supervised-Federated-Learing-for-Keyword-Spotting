@@ -8,7 +8,7 @@ import time
 import torch
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader, separate_dataset_semi, make_batchnorm_stats
+from data import fetch_dataset, make_data_loader, separate_dataset_semi, make_batchnorm_dataset, make_batchnorm_stats
 from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
 from logger import make_logger
@@ -42,8 +42,10 @@ def runExperiment():
     dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'])
     data_loader = make_data_loader(dataset, cfg['model_name'])
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     optimizer = make_optimizer(model, cfg['model_name'])
     scheduler = make_scheduler(optimizer, cfg['model_name'])
+    batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
     if result is None:
@@ -57,7 +59,8 @@ def runExperiment():
         logger = result['logger']
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
-        test(data_loader['test'], model, metric, logger, epoch)
+        test_model = make_batchnorm_stats(batchnorm_dataset, model, cfg['model_name'])
+        test(data_loader['test'], test_model, metric, logger, epoch)
         scheduler.step()
         result = {'cfg': cfg, 'epoch': epoch + 1, 'supervised_idx': supervised_idx,
                   'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(),

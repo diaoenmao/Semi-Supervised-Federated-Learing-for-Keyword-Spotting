@@ -10,7 +10,8 @@ import datasets
 import torch
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
-from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset_semi, make_transform
+from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset_semi, make_transform, \
+    make_batchnorm_dataset, make_batchnorm_stats
 from metrics import Metric
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
 from logger import make_logger
@@ -45,8 +46,10 @@ def runExperiment():
     sup_dataset, unsup_dataset, supervised_idx = separate_dataset_semi(dataset['train'])
     unsup_dataset.transform = make_transform(cfg['loss_mode'])
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     optimizer = make_optimizer(model, cfg['model_name'])
     scheduler = make_scheduler(optimizer, cfg['model_name'])
+    batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
     metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
                      'test': ['Loss', 'Accuracy']})
     result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
@@ -69,7 +72,8 @@ def runExperiment():
     sup_dataloader = make_data_loader({'train': sup_dataset}, cfg['model_name'], batch_sampler={'train': sup_sampler})
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         train(sup_dataloader['train'], unsup_dataloader['train'], model, optimizer, metric, logger, epoch)
-        test(data_loader['test'], model, metric, logger, epoch)
+        test_model = make_batchnorm_stats(batchnorm_dataset, model, cfg['model_name'])
+        test(data_loader['test'], test_model, metric, logger, epoch)
         scheduler.step()
         result = {'cfg': cfg, 'epoch': epoch + 1, 'model_state_dict': model.state_dict(),
                   'optimizer_state_dict': optimizer.state_dict(), 'scheduler_state_dict': scheduler.state_dict(),

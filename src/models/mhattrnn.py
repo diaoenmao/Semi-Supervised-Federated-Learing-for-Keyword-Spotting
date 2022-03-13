@@ -9,22 +9,23 @@ class MHAttRNN(nn.Module):
         super().__init__()
         self.num_heads = num_heads
         self.cnn = nn.Sequential(
-            nn.Conv2d(data_shape[1], hidden_size, (1, 3), stride=1, padding=(0, 1)),
-            nn.BatchNorm2d(hidden_size),
+            nn.Conv2d(data_shape[0], 10, (5, 1), stride=1),
+            nn.BatchNorm2d(10),
             nn.ReLU(inplace=True),
-            nn.Conv2d(hidden_size, 1, (1, 3), stride=1, padding=(0, 1)),
+            nn.Conv2d(10, 1, (5, 1), stride=1),
             nn.BatchNorm2d(1),
             nn.ReLU(inplace=True),
+            nn.AvgPool2d(2)
         )
-        self.rnn = nn.GRU(1, hidden_size, num_layers=2, bidirectional=True, batch_first=True)
+        self.rnn = nn.GRU(16, hidden_size, num_layers=2, bidirectional=True, batch_first=True)
         self.mhatt = nn.MultiheadAttention(embed_dim=hidden_size * 2, num_heads=num_heads, dropout=dropout,
                                            batch_first=True)
         self.linear = nn.Linear(hidden_size * 2, target_size)
 
     def f(self, x):
-        x = x.permute(0, 2, 1, 3)
         x = self.cnn(x)
         x = x.reshape(x.size(0), -1, x.size(-1)).permute(0, 2, 1)
+        self.rnn.flatten_parameters()
         x, _ = self.rnn(x)
         x = x[:, [x.size(1) // 2], :]
         x, _ = self.mhatt(x, x, x)

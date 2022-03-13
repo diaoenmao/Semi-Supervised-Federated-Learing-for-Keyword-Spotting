@@ -48,7 +48,7 @@ def runExperiment():
     optimizer = make_optimizer(model, 'local')
     scheduler = make_scheduler(optimizer, 'global')
     batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
-    data_split = split_dataset(dataset, cfg['num_clients'], cfg['data_split_mode'])
+    data_split, _ = split_dataset(dataset, cfg['num_clients'], cfg['data_split_mode'])
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
     if result is None:
@@ -92,7 +92,7 @@ def make_client(model, data_split):
     client_id = torch.arange(cfg['num_clients'])
     client = [None for _ in range(cfg['num_clients'])]
     for m in range(len(client)):
-        client[m] = Client(client_id[m], model, {'train': data_split['train'][m], 'test': data_split['test'][m]})
+        client[m] = Client(client_id[m], model, {'train': data_split[m]['train'], 'test': data_split[m]['test']})
     return client
 
 
