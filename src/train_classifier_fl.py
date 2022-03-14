@@ -92,7 +92,7 @@ def make_client(model, data_split):
     client_id = torch.arange(cfg['num_clients'])
     client = [None for _ in range(cfg['num_clients'])]
     for m in range(len(client)):
-        client[m] = Client(client_id[m], model, {'train': data_split[m]['train'], 'test': data_split[m]['test']})
+        client[m] = Client(client_id[m], model, {k: data_split[m]['train'] for k in data_split[m]})
     return client
 
 

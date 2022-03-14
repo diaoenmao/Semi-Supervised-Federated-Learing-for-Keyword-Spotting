@@ -130,6 +130,7 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
                          'aug_target': unsup_input['target']}
         else:
             input = {'data': sup_input['data'], 'target': sup_input['target']}
+        model.train(True)
         input_size = input['data'].size(0)
         input['loss_mode'] = cfg['loss_mode']
         output = model(input)

@@ -49,7 +49,7 @@ def runExperiment():
     optimizer = make_optimizer(model, 'local')
     scheduler = make_scheduler(optimizer, 'global')
     batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
-    data_split, _ = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
+    data_split, _ = split_dataset({'train': client_dataset}, cfg['num_clients'], cfg['data_split_mode'])
     metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
                      'test': ['Loss', 'Accuracy']})
     result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
@@ -99,7 +99,7 @@ def make_client(model, data_split):
     client_id = torch.arange(cfg['num_clients'])
     client = [None for _ in range(cfg['num_clients'])]
     for m in range(len(client)):
-        client[m] = Client(client_id[m], model, {'train': data_split['train'][m], 'test': data_split['test'][m]})
+        client[m] = Client(client_id[m], model, {k: data_split[m]['train'] for k in data_split[m]})
     return client
 
 
@@ -116,7 +116,7 @@ def train_client(batchnorm_dataset, client_dataset, server, client, optimizer, m
     for i in range(num_active_clients):
         m = client_id[i]
         dataset_m = separate_dataset(client_dataset, client[m].data_split['train'])
-        dataset_m = client[m].make_dataset(dataset_m)
+        dataset_m = client[m].make_dataset(dataset_m, metric, logger)
         if dataset_m is not None:
             client[m].active = True
         else:

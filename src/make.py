@@ -50,55 +50,46 @@ def main():
     filename = '{}_{}_{}_{}'.format(run, mode, data_name, model_name)
     if mode == 'fs':
         script_name = [['{}_classifier.py'.format(run)]]
-        control_name = [[data, model, ['fs'],
-                         ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand']]]
+        control_name = [[data, model, ['fs'], ['basic']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'ps':
         script_name = [['{}_classifier.py'.format(run)]]
-        control_name = [[data, model, ['250', '2500'],
-                         ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand']]]
+        control_name = [[data, model, ['250', '2500'], ['basic']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'semi':
         script_name = [['{}_classifier_semi.py'.format(run)]]
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec-rand'], ['fix-mix']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'semi-aug':
+        script_name = [['{}_classifier_semi.py'.format(run)]]
         control_name = [[data, model, ['250', '2500'],
-                         ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
-                         ['fix-mix']]]
+                         ['plain=basic', 'basic=basic', 'basic=basic-spec', 'basic-spec=basic-spec-rand'], ['fix-mix']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'semi-loss':
         script_name = [['{}_classifier_semi.py'.format(run)]]
-        control_name = [[data, model, ['250', '2500'],
-                         ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
-                         ['fix']]]
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec-rand'], ['fix']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'fl-cd':
         script_name = [['{}_classifier_fl.py'.format(run)]]
-        control_name = [
-            [data, model, ['fs'], ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand'],
-             ['sup'], ['100'], ['0.1'], ['iid', 'non-iid-l-2']]]
+        control_name = [[data, model, ['fs'], ['basic'], ['sup'], ['100'], ['0.1'], ['iid', 'non-iid-l-2']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'fl-ub':
         script_name = [['{}_classifier_fl.py'.format(run)]]
-        control_name = [
-            [data, model, ['fs'], ['plain', 'basic', 'basic-spec', 'basic-spec-ps', 'basic-spec-ps-rand'],
-             ['sup'], ['100'], ['0.1'], ['non-iid-d-0.1', 'non-iid-d-0.3']]]
+        control_name = [[data, model, ['fs'], ['basic'], ['sup'], ['100'], ['0.1'], ['non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'ssfl-cd':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]
-        control_name = [[data, model, ['250', '2500'],
-                         ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
-                         ['fix-mix'], ['100'], ['0.1'], ['iid', 'non-iid-l-2']]]
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec-rand'], ['fix-mix'], ['100'], ['0.1'],
+                         ['iid', 'non-iid-l-2']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'ssfl-ub':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]
-        control_name = [[data, model, ['250', '2500'],
-                         ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
-                         ['fix-mix'], ['100'], ['0.1'], ['non-iid-d-0.1', 'non-iid-d-0.3']]]
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec-rand'], ['fix-mix'], ['100'], ['0.1'],
+                         ['non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
-    elif mode == 'ssfl-cd-loss':
+    elif mode == 'ssfl-loss':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]
-        control_name = [[data, model, ['250', '2500'],
-                         ['plain=basic', 'basic=basic-spec', 'basic=basic-spec-ps', 'basic=basic-spec-ps-rand'],
-                         ['fix'], ['100'], ['0.1'], ['iid', 'non-iid-l-2']]]
+        control_name = [[data, model, ['2500'], ['basic=basic-spec-rand'], ['fix'], ['100'], ['0.1'], ['iid']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     else:
         raise ValueError('Not valid mode')
