@@ -244,6 +244,12 @@ def make_transform(mode):
     elif mode == 'basic-spec':
         transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
                                               cfg['background_noise'])
+    elif mode == 'basic-rand':
+        transform = make_basic_rand_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                              cfg['background_noise'])
+    elif mode == 'basic-rands':
+        transform = make_basic_rands_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
+                                               cfg['background_noise'])
     elif mode == 'basic-spec-rand':
         transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
                                               cfg['background_noise'])
@@ -304,6 +310,40 @@ def make_basic_spec_transform(data_length, n_fft, hop_length, background_noise):
                             torchvision.transforms.ToTensor()]
     basic_spec_transform = torchvision.transforms.Compose(basic_spec_transform)
     return basic_spec_transform
+
+
+def make_basic_rand_transform(data_length, n_fft, hop_length, background_noise):
+    n_stft = n_fft // 2 + 1
+    basic_rand_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
+                            datasets.transforms.CenterCropPad(data_length),
+                            datasets.transforms.RandomTimeShift(0.1),
+                            datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
+                            torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+                            datasets.transforms.ComplextoPower(),
+                            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+                            torchaudio.transforms.AmplitudeToDB('power', 80),
+                            datasets.transforms.SpectoImage(),
+                            datasets.randaugment.RandAugment(n=2, m=10),
+                            torchvision.transforms.ToTensor()]
+    basic_rand_transform = torchvision.transforms.Compose(basic_rand_transform)
+    return basic_rand_transform
+
+
+def make_basic_rands_transform(data_length, n_fft, hop_length, background_noise):
+    n_stft = n_fft // 2 + 1
+    basic_rands_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
+                            datasets.transforms.CenterCropPad(data_length),
+                            datasets.transforms.RandomTimeShift(0.1),
+                            datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
+                            torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length, power=None),
+                            datasets.transforms.ComplextoPower(),
+                            datasets.transforms.SpectoMFCC(n_mfcc=40, melkwargs={'n_stft': n_stft}),
+                            torchaudio.transforms.AmplitudeToDB('power', 80),
+                            datasets.transforms.SpectoImage(),
+                            datasets.randaugment.RandAugmentSelected(n=2, m=10),
+                            torchvision.transforms.ToTensor()]
+    basic_rands_transform = torchvision.transforms.Compose(basic_rands_transform)
+    return basic_rands_transform
 
 
 def make_basic_spec_rand_transform(data_length, n_fft, hop_length, background_noise):

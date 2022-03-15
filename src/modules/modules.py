@@ -187,12 +187,15 @@ class Client:
                     input = collate(input)
                     input_size = input['aug_data'].size(0)
                     input = to_device(input, cfg['device'])
+                    input['loss_mode'] = cfg['loss_mode']
                     optimizer.zero_grad()
                     output = model(input)
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
-                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    input_ = {'target': input['aug_target']}
+                    output_ = {'loss': output['loss'], 'target': output['aug_target']}
+                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input_, output_)
                     logger.append(evaluation, 'train', n=input_size)
         elif cfg['loss_mode'] == 'fix-mix':
             fix_dataset, mix_dataset = dataset
@@ -211,18 +214,21 @@ class Client:
                     mix_input = collate(mix_input)
                     lam = self.beta.sample()[0]
                     lam = max(lam, (1 - lam))
-                    fix_input['mix_data'] = (lam * fix_input['data'] + (1 - lam) * mix_input['mix_data']).detach()
-                    fix_input['mix_target'] = torch.stack([fix_input['target'], mix_input['mix_target']], dim=-1)
+                    fix_input['mix_data'] = (lam * fix_input['data'] + (1 - lam) * mix_input['data']).detach()
+                    fix_input['mix_target'] = torch.stack([fix_input['target'], mix_input['target']], dim=-1)
                     input = {'aug_data': fix_input['aug_data'], 'aug_target': fix_input['target'],
-                             'mix_data': fix_input['mix_data'], 'mix_target': fix_input['mix_target']}
+                             'mix_data': fix_input['mix_data'], 'mix_target': fix_input['mix_target'], 'lam': lam}
                     input_size = input['aug_data'].size(0)
                     input = to_device(input, cfg['device'])
+                    input['loss_mode'] = cfg['loss_mode']
                     optimizer.zero_grad()
                     output = model(input)
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
-                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    input_ = {'target': input['aug_target']}
+                    output_ = {'loss': output['loss'], 'target': output['aug_target']}
+                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input_, output_)
                     logger.append(evaluation, 'train', n=input_size)
         else:
             raise ValueError('Not valid loss mode')

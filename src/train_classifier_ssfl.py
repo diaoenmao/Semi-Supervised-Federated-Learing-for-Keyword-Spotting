@@ -119,6 +119,7 @@ def train_client(batchnorm_dataset, client_dataset, server, client, optimizer, m
         dataset_m = client[m].make_dataset(dataset_m, metric, logger)
         if dataset_m is not None:
             client[m].active = True
+            client[m].train(dataset_m, lr, metric, logger)
         else:
             client[m].active = False
         if i % int((num_active_clients * cfg['log_interval']) + 1) == 0:

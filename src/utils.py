@@ -138,7 +138,7 @@ def process_control():
     cfg['wresnet28x8'] = {'depth': 37, 'widen_factor': 2, 'drop_rate': 0.0}
     cfg['mhattrnn'] = {'hidden_size': 256, 'num_heads': 4, 'dropout': 0.1}
     cfg['threshold'] = 0.95
-    cfg['unsup_ratio'] = 7
+    cfg['unsup_ratio'] = 1
     cfg['alpha'] = 0.75
     model_name = cfg['model_name']
     cfg[model_name]['shuffle'] = {'train': True, 'test': False}

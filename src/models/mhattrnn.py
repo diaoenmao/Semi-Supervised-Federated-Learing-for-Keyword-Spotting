@@ -37,7 +37,7 @@ class MHAttRNN(nn.Module):
         output = {}
         if 'data' in input:
             output['target'] = self.f(input['data'])
-        if 'aug' in input:
+        if 'aug_data' in input:
             output['aug_target'] = self.f(input['aug_data'])
         if 'mix_data' in input:
             output['mix_target'] = self.f(input['mix_data'])

@@ -179,6 +179,27 @@ def rand_augment_pool():
             (Equalize, None, None),
             (Invert, None, None),
             (Posterize, 4, 0),
+            (Rotate, 30, None),
+            (Sharpness, 1.8, 0.1),
+            (ShearX, 0.3, None),
+            (ShearY, 0.3, None),
+            (Smooth, None, None),
+            (Solarize, 256, None),
+            (TranslateXConst, 100, None),
+            (TranslateYConst, 100, None),
+            ]
+    return augs
+
+
+def rand_augment_selected_pool():
+    augs = [(AutoContrast, None, None),
+            (Brightness, 1.8, 0.1),
+            # (Color, 1.8, 0.1),
+            (Contrast, 1.8, 0.1),
+            # (CutoutConst, 40, None),
+            (Equalize, None, None),
+            (Invert, None, None),
+            (Posterize, 4, 0),
             # (Rotate, 30, None),
             (Sharpness, 1.8, 0.1),
             # (ShearX, 0.3, None),
@@ -205,6 +226,25 @@ class RandAugment(object):
         ops = [self.augment_pool[i] for i in torch.randint(len(self.augment_pool), (self.n,)).tolist()]
         for op, max_v, bias in ops:
             prob = torch.FloatTensor(1, ).uniform_(0.2, 0.8).item()
-            if torch.rand(1,).item() + prob >= 1:
+            if torch.rand(1, ).item() + prob >= 1:
+                img = op(img, v=self.m, max_v=max_v, bias=bias)
+        return img
+
+
+class RandAugmentSelected(object):
+    def __init__(self, n, m, resample_mode=PIL.Image.BILINEAR):
+        assert n >= 1
+        assert m >= 1
+        global RESAMPLE_MODE
+        RESAMPLE_MODE = resample_mode
+        self.n = n
+        self.m = m
+        self.augment_pool = rand_augment_selected_pool()
+
+    def __call__(self, img):
+        ops = [self.augment_pool[i] for i in torch.randint(len(self.augment_pool), (self.n,)).tolist()]
+        for op, max_v, bias in ops:
+            prob = torch.FloatTensor(1, ).uniform_(0.2, 0.8).item()
+            if torch.rand(1, ).item() + prob >= 1:
                 img = op(img, v=self.m, max_v=max_v, bias=bias)
         return img
