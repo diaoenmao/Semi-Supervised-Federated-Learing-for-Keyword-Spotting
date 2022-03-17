@@ -68,6 +68,7 @@ def runExperiment():
         scheduler.load_state_dict(result['scheduler_state_dict'])
         logger = result['logger']
         server_dataset, client_dataset, supervised_idx = separate_dataset_semi(dataset['train'], supervised_idx)
+        client_dataset.transform = make_transform(cfg['loss_mode'])
     for epoch in range(last_epoch, cfg['global']['num_epochs'] + 1):
         train_client(batchnorm_dataset, client_dataset, server, client, optimizer, metric, logger, epoch)
         logger.reset()

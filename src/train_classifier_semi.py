@@ -64,6 +64,7 @@ def runExperiment():
         scheduler.load_state_dict(result['scheduler_state_dict'])
         logger = result['logger']
         sup_dataset, unsup_dataset, supervised_idx = separate_dataset_semi(dataset['train'], supervised_idx)
+        unsup_dataset.transform = make_transform(cfg['loss_mode'])
     unsup_dataloader = make_data_loader({'train': unsup_dataset}, cfg['model_name'],
                                         batch_size={'train': cfg[cfg['model_name']]['batch_size']['train'] * cfg[
                                             'unsup_ratio']})
