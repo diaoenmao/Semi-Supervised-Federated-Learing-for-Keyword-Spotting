@@ -147,7 +147,6 @@ def process_control():
         cfg[model_name]['lr'] = 1e-3
         cfg[model_name]['weight_decay'] = 5e-4
         cfg[model_name]['scheduler_name'] = 'None'
-        cfg[model_name]['num_epochs'] = 400
         cfg[model_name]['betas'] = (0.9, 0.999)
     elif model_name in ['cnn', 'dscnn']:
         cfg[model_name]['optimizer_name'] = 'SGD'
@@ -156,7 +155,6 @@ def process_control():
         cfg[model_name]['weight_decay'] = 5e-4
         cfg[model_name]['nesterov'] = True
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
-        cfg[model_name]['num_epochs'] = 400
     else:
         cfg[model_name]['optimizer_name'] = 'SGD'
         cfg[model_name]['lr'] = 3e-2
@@ -164,7 +162,7 @@ def process_control():
         cfg[model_name]['weight_decay'] = 5e-4
         cfg[model_name]['nesterov'] = True
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
-        cfg[model_name]['num_epochs'] = 400
+    cfg[model_name]['num_epochs'] = 400
     cfg[model_name]['batch_size'] = {'train': 250, 'test': 250}
     if 'num_clients' in cfg['control']:
         cfg['num_clients'] = int(cfg['control']['num_clients'])
@@ -177,7 +175,7 @@ def process_control():
         if cfg['num_supervised'] > 250:
             cfg['server']['batch_size'] = {'train': 250, 'test': 500}
         else:
-            cfg['server']['batch_size'] = {'train': 10, 'test': 500}
+            cfg['server']['batch_size'] = {'train': 25, 'test': 500}
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
         cfg['client']['batch_size'] = {'train': 250, 'test': 500}

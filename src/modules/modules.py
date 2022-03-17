@@ -183,7 +183,7 @@ class Client:
             model.train(True)
             for epoch in range(1, cfg['local']['num_epochs'] + 1):
                 for i, input in enumerate(fix_data_loader):
-                    input = {'aug_data': input['aug_data'], 'aug_target': input['aug_target']}
+                    input = {'aug_data': input['aug_data'], 'aug_target': input['target']}
                     input = collate(input)
                     input_size = input['aug_data'].size(0)
                     input = to_device(input, cfg['device'])

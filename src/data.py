@@ -206,14 +206,6 @@ def separate_dataset_semi(dataset, supervised_idx=None):
     return sup_dataset, unsup_dataset, supervised_idx
 
 
-def make_batchnorm_dataset_su(server_dataset, client_dataset):
-    batchnorm_dataset = copy.deepcopy(server_dataset)
-    batchnorm_dataset.data = batchnorm_dataset.data + client_dataset.data
-    batchnorm_dataset.target = batchnorm_dataset.target + client_dataset.target
-    batchnorm_dataset.id = batchnorm_dataset.id + client_dataset.id
-    return batchnorm_dataset
-
-
 def make_batchnorm_dataset(dataset):
     dataset = copy.deepcopy(dataset)
     plain_transform = datasets.Compose(
@@ -348,7 +340,7 @@ def make_basic_rands_transform(data_length, n_fft, hop_length, background_noise)
 
 def make_basic_spec_rands_transform(data_length, n_fft, hop_length, background_noise):
     n_stft = n_fft // 2 + 1
-    basic_spec_rand_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
+    basic_spec_rands_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                                  datasets.transforms.CenterCropPad(data_length),
                                  datasets.transforms.RandomTimeShift(0.1),
                                  datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
@@ -361,8 +353,8 @@ def make_basic_spec_rands_transform(data_length, n_fft, hop_length, background_n
                                  datasets.transforms.SpectoImage(),
                                  datasets.randaugment.RandAugmentSelected(n=2, m=10),
                                  torchvision.transforms.ToTensor()]
-    basic_spec_rand_transform = torchvision.transforms.Compose(basic_spec_rand_transform)
-    return basic_spec_rand_transform
+    basic_spec_rands_transform = torchvision.transforms.Compose(basic_spec_rands_transform)
+    return basic_spec_rands_transform
 
 
 class FixTransform(torch.nn.Module):

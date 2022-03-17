@@ -113,6 +113,7 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
             unsup_input['target'] = new_target.detach()
         if torch.any(mask):
             unsup_input['data'] = unsup_input['data'][mask]
+            unsup_input['aug_data'] = unsup_input['aug_data'][mask]
             unsup_input['target'] = unsup_input['target'][mask]
             # Mix
             if 'mix' in cfg['loss_mode']:
@@ -123,11 +124,11 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
                                            (1 - lam) * unsup_input['data'][:mix_size]).detach()
                 unsup_input['mix_target'] = torch.stack([sup_input['target'][:mix_size],
                                                          unsup_input['target'][:mix_size]], dim=-1).detach()
-                input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['data'],
+                input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['aug_data'],
                          'aug_target': unsup_input['target'], 'mix_data': unsup_input['mix_data'],
                          'mix_target': unsup_input['mix_target'], 'lam': lam}
             else:
-                input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['data'],
+                input = {'data': sup_input['data'], 'target': sup_input['target'], 'aug_data': unsup_input['aug_data'],
                          'aug_target': unsup_input['target']}
         else:
             input = {'data': sup_input['data'], 'target': sup_input['target']}
