@@ -171,44 +171,46 @@ def _int_parameter(v, max_v):
 
 
 def rand_augment_pool():
-    augs = [(AutoContrast, None, None),
-            (Brightness, 1.8, 0.1),
-            # (Color, 1.8, 0.1),
-            (Contrast, 1.8, 0.1),
-            # (CutoutConst, 40, None),
-            (Equalize, None, None),
-            (Invert, None, None),
-            (Posterize, 4, 0),
-            (Rotate, 30, None),
-            (Sharpness, 1.8, 0.1),
-            (ShearX, 0.3, None),
-            (ShearY, 0.3, None),
-            (Smooth, None, None),
-            (Solarize, 256, None),
-            (TranslateXConst, 100, None),
-            (TranslateYConst, 100, None),
-            ]
+    augs = [
+        (AutoContrast, None, None),
+        (Brightness, 1.8, 0.1),
+        # (Color, 1.8, 0.1),
+        (Contrast, 1.8, 0.1),
+        # (CutoutConst, 40, None),
+        (Equalize, None, None),
+        (Invert, None, None),
+        (Posterize, 4, 0),
+        (Rotate, 30, None),
+        (Sharpness, 1.8, 0.1),
+        (ShearX, 0.3, None),
+        (ShearY, 0.3, None),
+        (Smooth, None, None),
+        (Solarize, 256, None),
+        (TranslateXConst, 100, None),
+        (TranslateYConst, 100, None),
+    ]
     return augs
 
 
 def rand_augment_selected_pool():
-    augs = [(AutoContrast, None, None),
-            (Brightness, 1.8, 0.1),
-            # (Color, 1.8, 0.1),
-            (Contrast, 1.8, 0.1),
-            # (CutoutConst, 40, None),
-            (Equalize, None, None),
-            (Invert, None, None),
-            (Posterize, 4, 0),
-            # (Rotate, 30, None),
-            (Sharpness, 1.8, 0.1),
-            # (ShearX, 0.3, None),
-            # (ShearY, 0.3, None),
-            (Smooth, None, None),
-            (Solarize, 256, None),
-            # (TranslateXConst, 100, None),
-            # (TranslateYConst, 100, None),
-            ]
+    augs = [
+        # (AutoContrast, None, None),
+        # (Brightness, 1.8, 0.1),
+        # (Color, 1.8, 0.1),
+        (Contrast, 1.8, 0.1),
+        # (CutoutConst, 40, None),
+        (Equalize, None, None),
+        # (Invert, None, None),
+        (Posterize, 4, 0),
+        # (Rotate, 30, None),
+        (Sharpness, 1.8, 0.1),
+        # (ShearX, 0.3, None),
+        # (ShearY, 0.3, None),
+        (Smooth, None, None),
+        # (Solarize, 256, None),
+        # (TranslateXConst, 100, None),
+        # (TranslateYConst, 100, None),
+    ]
     return augs
 
 
@@ -247,4 +249,7 @@ class RandAugmentSelected(object):
             prob = torch.FloatTensor(1, ).uniform_(0.2, 0.8).item()
             if torch.rand(1, ).item() + prob >= 1:
                 img = op(img, v=self.m, max_v=max_v, bias=bias)
+        # ops = [self.augment_pool[1]]
+        # for op, max_v, bias in ops:
+        #     img = op(img, v=self.m, max_v=max_v, bias=bias)
         return img
