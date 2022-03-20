@@ -55,7 +55,7 @@ def main():
     elif mode == 'ps':
         script_name = [['{}_classifier.py'.format(run)]]
         control_name = [
-            [data, model, ['250', '2500'], ['basic', 'basic-spec', 'basic-rand', 'basic-rands', 'basic-spec-rands']]]
+            [data, model, ['250', '2500'], ['basic']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'fl':
         script_name = [['{}_classifier_fl.py'.format(run)]]
