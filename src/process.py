@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 result_path = './output/result'
-save_format = 'png'
+save_format = 'pdf'
 vis_path = './output/vis/{}'.format(save_format)
-num_experiments = 4
+num_experiments = 3
 exp = [str(x) for x in list(range(num_experiments))]
 
 
@@ -190,11 +190,12 @@ def make_df_history(extracted_processed_result_history):
 
 
 def make_vis(df_exp, df_history):
-    label_dict = {'Accuracy': 'Test', 'PAccuracy': 'Predicted', 'MAccuracy': 'Threshold', 'LabelRatio': 'Label Ratio',
+    label_dict = {'Accuracy': 'Test Accuracy', 'PAccuracy': 'Label Accuracy', 'MAccuracy': 'Threshold Accuracy',
+                  'LabelRatio': 'Label Ratio',
                   'fs': 'Fully Supervised', 'ps': 'Partially Supervised'}
-    color_dict = {'Accuracy': 'red', 'PAccuracy': 'dodgerblue', 'MAccuracy': 'blue', 'LabelRatio': 'black',
+    color_dict = {'Accuracy': 'red', 'PAccuracy': 'dodgerblue', 'MAccuracy': 'blue', 'LabelRatio': 'green',
                   'fs': 'black', 'ps': 'orange'}
-    linestyle_dict = {'Accuracy': '-', 'PAccuracy': '--', 'MAccuracy': ':', 'LabelRatio': '-', 'fs': (0, (5, 5)),
+    linestyle_dict = {'Accuracy': '-', 'PAccuracy': '--', 'MAccuracy': ':', 'LabelRatio': '-.', 'fs': (0, (5, 5)),
                       'ps': (0, (5, 10))}
     loc_dict = {'Accuracy': 'lower right', 'LabelRatio': 'lower right'}
     fontsize_dict = {'legend': 12, 'label': 16, 'ticks': 16}
@@ -206,69 +207,55 @@ def make_vis(df_exp, df_history):
             metric_name, stat = df_name_list[-2], df_name_list[-1]
             if stat == 'std':
                 continue
-            if metric_name in ['Accuracy', 'PAccuracy', 'MAccuracy']:
+            if metric_name in ['Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio']:
                 if len(df_name_list) == 7:
                     xlabel = 'Epoch'
                 else:
                     xlabel = 'Communication Rounds'
-                ylabel = 'Accuracy'
+                # ylabel = 'Accuracy'
                 fig_name = '_'.join([*df_name_list[:-2], 'Accuracy'])
                 fig[fig_name] = plt.figure(fig_name)
                 y = df_history[df_name].iloc[0].to_numpy()
                 y_err = df_history[df_name_std].iloc[0].to_numpy()
-                if metric_name in ['PAccuracy', 'MAccuracy']:
-                    y = y[::2]
-                    y_err = y_err[::2]
+                if metric_name in ['PAccuracy', 'MAccuracy', 'LabelRatio']:
+                    if len(df_name_list) == 7:
+                        y = y[::2]
+                        y_err = y_err[::2]
+                    else:
+                        y = y[::3]
+                        y_err = y_err[::3]
+                if metric_name in ['LabelRatio']:
+                    y = y * 100
                 x = np.arange(len(y))
                 plt.plot(x, y, label=label_dict[metric_name], color=color_dict[metric_name],
                          linestyle=linestyle_dict[metric_name])
-                plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
+                # plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
                 plt.legend(loc=loc_dict['Accuracy'], fontsize=fontsize_dict['legend'])
                 plt.xlabel(xlabel, fontsize=fontsize_dict['label'])
-                plt.ylabel(ylabel, fontsize=fontsize_dict['label'])
+                # plt.ylabel(ylabel, fontsize=fontsize_dict['label'])
                 plt.xticks(fontsize=fontsize_dict['ticks'])
                 plt.yticks(fontsize=fontsize_dict['ticks'])
                 if metric_name in ['Accuracy']:
-                    fs_df_name = '_'.join([*df_name_list[:2], 'fs', 'basic', 'Accuracy', 'mean'])
-                    fs_df_name_std = '_'.join([*df_name_list[:2], 'fs', 'basic', 'Accuracy', 'std'])
+                    fs_df_name = '_'.join([*df_name_list[:2], 'fs', 'basic'])
                     fig[fig_name] = plt.figure(fig_name)
-                    y = df_history[fs_df_name].iloc[0].to_numpy()
-                    y_err = df_history[fs_df_name_std].iloc[0].to_numpy()
                     x = np.arange(len(y))
+                    y = df_exp[fs_df_name]['Accuracy_mean'].to_numpy()
+                    y_err = df_exp[fs_df_name]['Accuracy_std'].to_numpy()
+                    y = np.repeat(y, len(x))
+                    y_err = np.repeat(y_err, len(x))
                     plt.plot(x, y, label=label_dict['fs'], color=color_dict['fs'],
                              linestyle=linestyle_dict['fs'])
-                    plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict['fs'], alpha=.1)
+                    # plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict['fs'], alpha=.1)
                     plt.legend(loc=loc_dict['Accuracy'], fontsize=fontsize_dict['legend'])
-                    ps_df_name = '_'.join([*df_name_list[:3], 'basic', 'Accuracy', 'mean'])
-                    ps_df_name_std = '_'.join([*df_name_list[:3], 'basic', 'Accuracy', 'std'])
-                    y = df_history[ps_df_name].iloc[0].to_numpy()
-                    y_err = df_history[ps_df_name_std].iloc[0].to_numpy()
-                    x = np.arange(len(y))
+                    ps_df_name = '_'.join([*df_name_list[:3], 'basic'])
+                    y = df_exp[ps_df_name]['Accuracy_mean'].to_numpy()
+                    y_err = df_exp[ps_df_name]['Accuracy_std'].to_numpy()
+                    y = np.repeat(y, len(x))
+                    y_err = np.repeat(y_err, len(x))
                     plt.plot(x, y, label=label_dict['ps'], color=color_dict['ps'],
                              linestyle=linestyle_dict['ps'])
-                    plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict['ps'], alpha=.1)
+                    # plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict['ps'], alpha=.1)
                     plt.legend(loc=loc_dict['Accuracy'], fontsize=fontsize_dict['legend'])
-            if metric_name in ['LabelRatio']:
-                if len(df_name_list) == 7:
-                    xlabel = 'Epoch'
-                else:
-                    xlabel = 'Communication Rounds'
-                ylabel = 'Label Ratio'
-                fig_name = '_'.join([*df_name_list[:-2], 'LabelRatio'])
-                fig[fig_name] = plt.figure(fig_name)
-                y = df_history[df_name].iloc[0].to_numpy()
-                y_err = df_history[df_name_std].iloc[0].to_numpy()
-                y = y[::2]
-                y_err = y_err[::2]
-                x = np.arange(len(y))
-                plt.plot(x, y, label=label_dict[metric_name], color=color_dict[metric_name],
-                         linestyle=linestyle_dict[metric_name])
-                plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
-                plt.legend(loc=loc_dict['Accuracy'], fontsize=fontsize_dict['legend'])
-                plt.xlabel(xlabel, fontsize=fontsize_dict['label'])
-                plt.ylabel(ylabel, fontsize=fontsize_dict['label'])
-                plt.xticks(fontsize=fontsize_dict['ticks'])
-                plt.yticks(fontsize=fontsize_dict['ticks'])
     for fig_name in fig:
         fig[fig_name] = plt.figure(fig_name)
         plt.grid()

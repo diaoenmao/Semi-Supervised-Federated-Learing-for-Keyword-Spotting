@@ -16,6 +16,8 @@ if __name__ == "__main__":
     aug = 'plain'
     dataset = fetch_dataset(cfg['data_name'])
     print(len(dataset['train']))
+    print(len(dataset['test']))
+    exit()
     dataset['train'].transform = datasets.Compose([make_transform(aug)])
     print(dataset['train'].transform)
     process_dataset(dataset)

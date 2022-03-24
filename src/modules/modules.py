@@ -213,7 +213,7 @@ class Client:
                     fix_input = collate(fix_input)
                     mix_input = collate(mix_input)
                     lam = self.beta.sample()[0]
-                    lam = max(lam, (1 - lam))
+                    # lam = max(lam, (1 - lam))
                     fix_input['mix_data'] = (lam * fix_input['data'] + (1 - lam) * mix_input['data']).detach()
                     fix_input['mix_target'] = torch.stack([fix_input['target'], mix_input['target']], dim=-1)
                     input = {'aug_data': fix_input['aug_data'], 'aug_target': fix_input['target'],
