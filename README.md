@@ -1,1 +1,1 @@
-# SemiFL-WW
+# Semi-Supervised Federated Learing for Keyword Spotting
