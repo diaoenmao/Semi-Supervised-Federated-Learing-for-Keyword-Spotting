@@ -37,6 +37,7 @@ class DSCNN(nn.Module):
 
     def f(self, x):
         x = self.blocks(x)
+        x = self.linear(x)
         return x
 
     def forward(self, input):
