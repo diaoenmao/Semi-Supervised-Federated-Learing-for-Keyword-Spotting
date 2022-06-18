@@ -39,7 +39,7 @@ def main():
     mode = args['mode']
     split_round = args['split_round']
     data = [args['data']] if args['data'] is not None else ['SpeechCommandsV1', 'SpeechCommandsV2']
-    model = [args['model']] if args['model'] is not None else ['tcresnet18', 'wresnet28x2']
+    model = [args['model']] if args['model'] is not None else ['tcresnet18']
     data_name = args['data'] if args['data'] is not None else 'default'
     model_name = args['model'] if args['model'] is not None else 'default'
     gpu_ids = [','.join(str(i) for i in list(range(x, x + world_size))) for x in list(range(0, num_gpus, world_size))]

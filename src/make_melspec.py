@@ -16,6 +16,7 @@ from metrics import Metric
 from utils import save, to_device, process_control, makedir_exist_ok, collate
 from logger import make_logger
 
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')
 for k in cfg:
@@ -33,8 +34,12 @@ def main():
     cfg['control']['data_name'] = 'SpeechCommandsV1'
     process_control()
     augs = ['plain', 'basic', 'basic-spec', 'basic-rands', 'basic-spec-rands']
+    # augs = ['plain']
     dataset = fetch_dataset(cfg['data_name'])
-    label_0, label_1 = 2, 3
+    target_dict = {"yes": 0, "no": 1, "up": 2, "down": 3, "left": 4, "right": 5, "on": 6, "off": 7, "stop": 8,
+                   "go": 9, 'silence': 10, 'unknown': 11}
+    target_list = list(target_dict.keys())
+    label_0, label_1 = 0, 1
     idx_0 = torch.arange(len(dataset['train'].target))[torch.tensor(dataset['train'].target) == label_0][0]
     idx_1 = torch.arange(len(dataset['train'].target))[torch.tensor(dataset['train'].target) == label_1][0]
     beta = torch.distributions.beta.Beta(torch.tensor([cfg['alpha']]), torch.tensor([cfg['alpha']]))
@@ -44,12 +49,12 @@ def main():
         input_0 = collate(input_0)
         input_1 = input_collate([dataset['train'][idx_1]])
         input_1 = collate(input_1)
-        plot_spectrogram_1(input_0['data'], './output/spec/{}_0.png'.format(augs[i]))
-        plot_spectrogram_1(input_1['data'], './output/spec/{}_1.png'.format(augs[i]))
+        plot_spectrogram_1(input_0['data'], './output/spec/{}_{}_0.png'.format(augs[i], target_list[label_0]))
+        plot_spectrogram_1(input_1['data'], './output/spec/{}_{}_1.png'.format(augs[i], target_list[label_1]))
         lam = beta.sample()[0]
         lam = max(lam, (1 - lam))
         input_mix = lam * input_0['data'] + (1 - lam) * input_1['data']
-        plot_spectrogram_1(input_mix, './output/spec/{}_mix.png'.format(augs[i]))
+        plot_spectrogram_1(input_mix, './output/spec/{}_mix_{}.png'.format(augs[i], lam))
     return
 
 
