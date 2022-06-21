@@ -231,20 +231,15 @@ def make_transform(mode):
     if mode == 'plain':
         transform = make_plain_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
     elif mode == 'basic':
-        transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                         cfg['background_noise'])
+        transform = make_basic_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
     elif mode == 'basic-spec':
-        transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                              cfg['background_noise'])
+        transform = make_basic_spec_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
     elif mode == 'basic-rand':
-        transform = make_basic_rand_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                              cfg['background_noise'])
+        transform = make_basic_rand_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
     elif mode == 'basic-rands':
-        transform = make_basic_rands_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                               cfg['background_noise'])
+        transform = make_basic_rands_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
     elif mode == 'basic-spec-rands':
-        transform = make_basic_spec_rands_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'],
-                                                    cfg['background_noise'])
+        transform = make_basic_spec_rands_transform(cfg['data_length'], cfg['n_fft'], cfg['hop_length'])
     elif 'fix' in mode:
         transform = make_fix_transform(cfg['data_name'])
     else:
@@ -267,11 +262,10 @@ def make_plain_transform(data_length, n_fft, hop_length):
     return plain_transform
 
 
-def make_basic_transform(data_length, n_fft, hop_length, background_noise):
+def make_basic_transform(data_length, n_fft, hop_length):
     basic_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                        datasets.transforms.CenterCropPad(data_length),
                        datasets.transforms.RandomTimeShift(0.1),
-                       datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
                        torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
                        torchaudio.transforms.AmplitudeToDB('power', 80),
                        datasets.transforms.SpectoImage(),
@@ -280,11 +274,10 @@ def make_basic_transform(data_length, n_fft, hop_length, background_noise):
     return basic_transform
 
 
-def make_basic_spec_transform(data_length, n_fft, hop_length, background_noise):
+def make_basic_spec_transform(data_length, n_fft, hop_length):
     basic_spec_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                             datasets.transforms.CenterCropPad(data_length),
                             datasets.transforms.RandomTimeShift(0.1),
-                            datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
                             torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
                             torchaudio.transforms.FrequencyMasking(7),
                             torchaudio.transforms.TimeMasking(12),
@@ -296,11 +289,10 @@ def make_basic_spec_transform(data_length, n_fft, hop_length, background_noise):
     return basic_spec_transform
 
 
-def make_basic_rand_transform(data_length, n_fft, hop_length, background_noise):
+def make_basic_rand_transform(data_length, n_fft, hop_length):
     basic_rand_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                             datasets.transforms.CenterCropPad(data_length),
                             datasets.transforms.RandomTimeShift(0.1),
-                            datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
                             torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
                             torchaudio.transforms.AmplitudeToDB('power', 80),
                             datasets.transforms.SpectoImage(),
@@ -310,11 +302,10 @@ def make_basic_rand_transform(data_length, n_fft, hop_length, background_noise):
     return basic_rand_transform
 
 
-def make_basic_rands_transform(data_length, n_fft, hop_length, background_noise):
+def make_basic_rands_transform(data_length, n_fft, hop_length):
     basic_rands_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                              datasets.transforms.CenterCropPad(data_length),
                              datasets.transforms.RandomTimeShift(0.1),
-                             datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
                              torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
                              torchaudio.transforms.AmplitudeToDB('power', 80),
                              datasets.transforms.SpectoImage(),
@@ -324,11 +315,10 @@ def make_basic_rands_transform(data_length, n_fft, hop_length, background_noise)
     return basic_rands_transform
 
 
-def make_basic_spec_rands_transform(data_length, n_fft, hop_length, background_noise):
+def make_basic_spec_rands_transform(data_length, n_fft, hop_length):
     basic_spec_rands_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
                                  datasets.transforms.CenterCropPad(data_length),
                                  datasets.transforms.RandomTimeShift(0.1),
-                                 datasets.transforms.RandomBackgroundNoise(background_noise, 0.8, 0.1),
                                  torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
                                  torchaudio.transforms.FrequencyMasking(7),
                                  torchaudio.transforms.TimeMasking(12),
