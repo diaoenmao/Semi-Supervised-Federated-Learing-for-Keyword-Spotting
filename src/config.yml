@@ -10,7 +10,7 @@ control:
   active_rate: '0.1'
   data_split_mode: 'iid'
 # experiment
-pin_memory: False
+pin_memory: True
 num_workers: 0
 init_seed: 0
 num_experiments: 1

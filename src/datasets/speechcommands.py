@@ -35,8 +35,9 @@ class SpeechCommandsV1(Dataset):
                                                      torch.tensor(self.utterance_id[index]), \
                                                      torch.tensor(self.target[index])
         input = {'id': id, 'data': data, 'speaker_id': speaker_id, 'utterance_id': utterance_id, 'target': target}
-        if self.transform is not None:
-            input = self.transform(input)
+        with torch.no_grad():
+            if self.transform is not None:
+                input = self.transform(input)
         return input
 
     def __len__(self):

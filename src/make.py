@@ -63,9 +63,16 @@ def main():
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'semi':
         script_name = [['{}_classifier_semi.py'.format(run)]]
-        control_name = [[data, model, ['250', '2500'],
-                         ['basic=basic', 'basic=basic-spec', 'basic=basic-rand', 'basic=basic-rands',
-                          'basic=basic-spec-rands'], ['fix-mix', 'fix']]]
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-rands'], ['fix']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'semi-aug':
+        script_name = [['{}_classifier_semi.py'.format(run)]]
+        control_name = [[data, model, ['250'], ['basic=basic', 'basic=basic-spec', 'basic=basic-rand', 
+                                                'basic=basic-spec-rands'], ['fix']]]
+        controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
+    elif mode == 'semi-loss':
+        script_name = [['{}_classifier_semi.py'.format(run)]]
+        control_name = [[data, model, ['250'], ['basic=basic-rands'], ['fix-mix']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     elif mode == 'ssfl':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]

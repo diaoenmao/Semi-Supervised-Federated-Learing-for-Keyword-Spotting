@@ -281,7 +281,6 @@ def make_basic_spec_transform(data_length, n_fft, hop_length):
                             torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
                             torchaudio.transforms.FrequencyMasking(7),
                             torchaudio.transforms.TimeMasking(12),
-                            torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
                             torchaudio.transforms.AmplitudeToDB('power', 80),
                             datasets.transforms.SpectoImage(),
                             torchvision.transforms.ToTensor()]
@@ -317,15 +316,15 @@ def make_basic_rands_transform(data_length, n_fft, hop_length):
 
 def make_basic_spec_rands_transform(data_length, n_fft, hop_length):
     basic_spec_rands_transform = [datasets.transforms.RandomTimeResample([0.85, 1.15]),
-                                 datasets.transforms.CenterCropPad(data_length),
-                                 datasets.transforms.RandomTimeShift(0.1),
-                                 torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
-                                 torchaudio.transforms.FrequencyMasking(7),
-                                 torchaudio.transforms.TimeMasking(12),
-                                 torchaudio.transforms.AmplitudeToDB('power', 80),
-                                 datasets.transforms.SpectoImage(),
-                                 datasets.randaugment.RandAugmentSelected(n=2, m=10),
-                                 torchvision.transforms.ToTensor()]
+                                  datasets.transforms.CenterCropPad(data_length),
+                                  datasets.transforms.RandomTimeShift(0.1),
+                                  torchaudio.transforms.MelSpectrogram(n_fft=n_fft, hop_length=hop_length, n_mels=40),
+                                  torchaudio.transforms.FrequencyMasking(7),
+                                  torchaudio.transforms.TimeMasking(12),
+                                  torchaudio.transforms.AmplitudeToDB('power', 80),
+                                  datasets.transforms.SpectoImage(),
+                                  datasets.randaugment.RandAugmentSelected(n=2, m=10),
+                                  torchvision.transforms.ToTensor()]
     basic_spec_rands_transform = torchvision.transforms.Compose(basic_spec_rands_transform)
     return basic_spec_rands_transform
 
