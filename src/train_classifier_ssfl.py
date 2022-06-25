@@ -43,15 +43,19 @@ def runExperiment():
     process_dataset(dataset)
     data_loader = make_data_loader(dataset, cfg['model_name'])
     server_dataset, client_dataset, supervised_idx = separate_dataset_semi(dataset['train'])
-    client_dataset.transform = make_transform(cfg['loss_mode'])
+    if cfg['loss_mode'] != 'sup':
+        client_dataset.transform = make_transform(cfg['loss_mode'])
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=False))
     optimizer = make_optimizer(model, 'local')
     scheduler = make_scheduler(optimizer, 'global')
     batchnorm_dataset = make_batchnorm_dataset(dataset['train'])
     data_split, _ = split_dataset({'train': client_dataset}, cfg['num_clients'], cfg['data_split_mode'])
-    metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
-                     'test': ['Loss', 'Accuracy']})
+    if cfg['loss_mode'] != 'sup':
+        metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
+                         'test': ['Loss', 'Accuracy']})
+    else:
+        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     result = resume(cfg['model_tag'], resume_mode=cfg['resume_mode'])
     if result is None:
         last_epoch = 1
@@ -68,7 +72,8 @@ def runExperiment():
         scheduler.load_state_dict(result['scheduler_state_dict'])
         logger = result['logger']
         server_dataset, client_dataset, supervised_idx = separate_dataset_semi(dataset['train'], supervised_idx)
-        client_dataset.transform = make_transform(cfg['loss_mode'])
+        if cfg['loss_mode'] != 'sup':
+            client_dataset.transform = make_transform(cfg['loss_mode'])
     for epoch in range(last_epoch, cfg['global']['num_epochs'] + 1):
         train_client(batchnorm_dataset, client_dataset, server, client, optimizer, metric, logger, epoch)
         logger.reset()
@@ -110,7 +115,10 @@ def train_client(batchnorm_dataset, client_dataset, server, client, optimizer, m
     client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
     for i in range(num_active_clients):
         client[client_id[i]].active = True
-    server.distribute(client, batchnorm_dataset)
+    if cfg['loss_mode'] != 'sup':
+        server.distribute(client, batchnorm_dataset)
+    else:
+        server.distribute(client)
     num_active_clients = len(client_id)
     start_time = time.time()
     lr = optimizer.param_groups[0]['lr']
