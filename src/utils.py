@@ -178,7 +178,12 @@ def process_control():
             cfg['server']['batch_size'] = {'train': 25, 'test': 500}
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
-        cfg['client']['batch_size'] = {'train': 250, 'test': 500}
+        if cfg['num_clients'] > 10:
+            cfg['client']['batch_size'] = {'train': 10, 'test': 500}
+        elif cfg['num_clients'] > 1:
+            cfg['client']['batch_size'] = {'train': 100, 'test': 500}
+        else:
+            cfg['client']['batch_size'] = {'train': 250, 'test': 500}
         cfg['local'] = {}
         cfg['local']['optimizer_name'] = 'SGD'
         cfg['local']['lr'] = 3e-2
