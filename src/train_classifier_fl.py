@@ -39,7 +39,7 @@ def runExperiment():
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
-    dataset = fetch_dataset(cfg['data_name'])
+    dataset = fetch_dataset(cfg['data_name'], cfg['sup_aug'])
     process_dataset(dataset)
     dataset['train'], _, supervised_idx = separate_dataset_semi(dataset['train'])
     data_loader = make_data_loader(dataset, 'global')

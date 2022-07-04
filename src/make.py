@@ -82,7 +82,7 @@ def main():
     elif mode == 'ssfl':
         script_name = [['{}_classifier_ssfl.py'.format(run)]]
         control_name = [[data, model, ['250', '2500'], ['basic=basic-spec'], ['fix-mix', 'fix'], ['100'], ['0.1'],
-                         ['iid', 'non-iid-d-0.1']]]
+                         ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(script_name, init_seeds, world_size, num_experiments, resume_mode, control_name)
     else:
         raise ValueError('Not valid mode')

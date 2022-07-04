@@ -19,7 +19,6 @@ stats_path = './res/stats'
 dim = 1
 
 if __name__ == "__main__":
-
     process_control()
     cfg['seed'] = 0
     data_names = ['SpeechCommandsV1', 'SpeechCommandsV2']
