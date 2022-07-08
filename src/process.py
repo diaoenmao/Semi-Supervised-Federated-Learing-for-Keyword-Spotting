@@ -7,11 +7,14 @@ from utils import save, load, makedir_exist_ok
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 result_path = './output/result'
-save_format = 'pdf'
+save_format = 'png'
 vis_path = './output/vis/{}'.format(save_format)
-num_experiments = 3
+num_experiments = 4
 exp = [str(x) for x in list(range(num_experiments))]
+dpi = 300
 
 
 def make_controls(control_name):
@@ -23,26 +26,36 @@ def make_controls(control_name):
     return controls
 
 
-def make_control_list(file):
+def make_control_list(mode):
     data = ['SpeechCommandsV1', 'SpeechCommandsV2']
-    model = ['tcresnet18', 'wresnet28x2']
-    if file == 'fs':
+    model = ['tcresnet18']
+    if mode == 'fs':
         control_name = [[data, model, ['fs'], ['basic']]]
         controls = make_controls(control_name)
-    elif file == 'ps':
+    elif mode == 'ps':
         control_name = [[data, model, ['250', '2500'], ['basic']]]
         controls = make_controls(control_name)
-    elif file == 'fl':
-        control_name = [[data, model, ['fs'], ['basic'], ['sup'], ['100'], ['0.1'], ['iid', 'non-iid-d-0.1']]]
+    elif mode == 'fl':
+        control_name = [[data, model, ['fs'], ['basic'], ['sup'], ['100'], ['0.1'],
+                         ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(control_name)
-    elif file == 'semi':
-        control_name = [[data, model, ['250', '2500'],
-                         ['basic=basic', 'basic=basic-spec', 'basic=basic-rand', 'basic=basic-rands',
-                          'basic=basic-spec-rands'], ['fix-mix', 'fix']]]
+    elif mode == 'fl-alter':
+        control_name = [[data, model, ['2500'], ['basic'], ['sup'], ['100'], ['0.1'],
+                         ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(control_name)
-    elif file == 'ssfl':
-        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec-rands'], ['fix-mix', 'fix'], ['100'], ['0.1'],
-                         ['iid', 'non-iid-d-0.1']]]
+    elif mode == 'semi':
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec'], ['fix']]]
+        controls = make_controls(control_name)
+    elif mode == 'semi-aug':
+        control_name = [[data, model, ['250'], ['basic=basic', 'basic=basic-rand', 'basic=basic-rands',
+                                                'basic=basic-spec-rands'], ['fix']]]
+        controls = make_controls(control_name)
+    elif mode == 'semi-loss':
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec'], ['fix-mix']]]
+        controls = make_controls(control_name)
+    elif mode == 'ssfl':
+        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec'], ['fix-mix'], ['100'], ['0.1'],
+                         ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(control_name)
     else:
         raise ValueError('Not valid file')
@@ -51,7 +64,7 @@ def make_control_list(file):
 
 def main():
     # modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug', 'semi-loss', 'ssfl']
-    modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug']
+    modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug', 'semi-loss']
     controls = []
     for mode in modes:
         controls += make_control_list(mode)
@@ -191,78 +204,139 @@ def make_df_history(extracted_processed_result_history):
 
 
 def make_vis(df_exp, df_history):
-    label_dict = {'Accuracy': 'Test Accuracy', 'PAccuracy': 'Label Accuracy', 'MAccuracy': 'Threshold Accuracy',
-                  'LabelRatio': 'Label Ratio',
-                  'fs': 'Fully Supervised', 'ps': 'Partially Supervised'}
-    color_dict = {'Accuracy': 'red', 'PAccuracy': 'dodgerblue', 'MAccuracy': 'blue', 'LabelRatio': 'green',
-                  'fs': 'black', 'ps': 'orange'}
-    linestyle_dict = {'Accuracy': '-', 'PAccuracy': '--', 'MAccuracy': ':', 'LabelRatio': '-.', 'fs': (0, (5, 5)),
-                      'ps': (0, (5, 10))}
-    loc_dict = {'Accuracy': 'lower right', 'LabelRatio': 'lower right'}
-    fontsize_dict = {'legend': 12, 'label': 16, 'ticks': 16}
+    label_loc_dict = {'Accuracy': 'lower right', 'LabelRatio': 'lower right'}
+    fontsize = {'legend': 10, 'label': 12, 'ticks': 12}
+    figsize = (5, 4)
     fig = {}
+    ax_dict_1 = {}
+    ax_dict_2 = {}
     for df_name in df_history:
         df_name_list = df_name.split('_')
-        df_name_std = '_'.join([*df_name_list[:-1], 'std'])
-        if 'fix' in df_name_list or 'fix-mix' in df_name_list:
-            metric_name, stat = df_name_list[-2], df_name_list[-1]
-            if stat == 'std':
-                continue
-            if metric_name in ['Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio']:
+        metric_name, stat = df_name_list[-2], df_name_list[-1]
+        semi_mask = len(df_name_list) == 7 and metric_name not in ['Loss'] and stat == 'mean'
+        fl_mask = len(df_name_list) == 10 and 'sup' in df_name_list and metric_name not in ['Loss'] and stat == 'mean'
+        if semi_mask:
+            label_dict = {'Accuracy': 'Test', 'PAccuracy': 'Pseudo-Label', 'MAccuracy': 'Thresholded',
+                          'LabelRatio': 'Label Ratio',
+                          'fs': 'Fully Supervised', 'ps': 'Partially Supervised'}
+            color_dict = {'Accuracy': 'red', 'PAccuracy': 'dodgerblue', 'MAccuracy': 'blue', 'LabelRatio': 'green',
+                          'fs': 'black', 'ps': 'orange'}
+            linestyle_dict = {'Accuracy': '-', 'PAccuracy': '--', 'MAccuracy': ':', 'LabelRatio': '-.',
+                              'fs': (0, (5, 5)),
+                              'ps': (0, (5, 10))}
+            xlabel = 'Epoch'
+            ylabel_1 = 'Accuracy'
+            ylabel_2 = 'Label Ratio'
+            df_name_std = '_'.join([*df_name_list[:-1], 'std'])
+            fig_name = '_'.join([*df_name_list[:-2]])
+            fig[fig_name] = plt.figure(fig_name, figsize=figsize)
+            if fig_name not in ax_dict_1:
+                ax_dict_1[fig_name] = fig[fig_name].add_subplot(111)
+                ax_dict_2[fig_name] = ax_dict_1[fig_name].twinx()
+            ax_1 = ax_dict_1[fig_name]
+            ax_2 = ax_dict_2[fig_name]
+            y = df_history[df_name].iloc[0].to_numpy()
+            y_err = df_history[df_name_std].iloc[0].to_numpy()
+            if metric_name in ['PAccuracy', 'MAccuracy', 'LabelRatio']:
                 if len(df_name_list) == 7:
-                    xlabel = 'Epoch'
-                else:
-                    xlabel = 'Communication Rounds'
-                # ylabel = 'Accuracy'
-                fig_name = '_'.join([*df_name_list[:-2], 'Accuracy'])
+                    y = y[::2]
+                    y_err = y_err[::2]
+                # else:
+                #     y = y[::3]
+                #     y_err = y_err[::3]
+            x = np.arange(len(y))
+            if metric_name in ['LabelRatio']:
+                ax_2.plot(x, y, label=label_dict[metric_name], color=color_dict[metric_name],
+                          linestyle=linestyle_dict[metric_name])
+                ax_2.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
+            else:
+                ax_1.plot(x, y, label=label_dict[metric_name], color=color_dict[metric_name],
+                          linestyle=linestyle_dict[metric_name])
+                ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
+            if metric_name in ['Accuracy']:
+                fs_df_name = '_'.join([*df_name_list[:2], 'fs', 'basic'])
                 fig[fig_name] = plt.figure(fig_name)
-                y = df_history[df_name].iloc[0].to_numpy()
-                y_err = df_history[df_name_std].iloc[0].to_numpy()
-                if metric_name in ['PAccuracy', 'MAccuracy', 'LabelRatio']:
-                    if len(df_name_list) == 7:
-                        y = y[::2]
-                        y_err = y_err[::2]
-                    else:
-                        y = y[::3]
-                        y_err = y_err[::3]
-                if metric_name in ['LabelRatio']:
-                    y = y * 100
                 x = np.arange(len(y))
-                plt.plot(x, y, label=label_dict[metric_name], color=color_dict[metric_name],
-                         linestyle=linestyle_dict[metric_name])
-                # plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
-                plt.legend(loc=loc_dict['Accuracy'], fontsize=fontsize_dict['legend'])
-                plt.xlabel(xlabel, fontsize=fontsize_dict['label'])
-                # plt.ylabel(ylabel, fontsize=fontsize_dict['label'])
-                plt.xticks(fontsize=fontsize_dict['ticks'])
-                plt.yticks(fontsize=fontsize_dict['ticks'])
-                if metric_name in ['Accuracy']:
-                    fs_df_name = '_'.join([*df_name_list[:2], 'fs', 'basic'])
-                    fig[fig_name] = plt.figure(fig_name)
-                    x = np.arange(len(y))
-                    y = df_exp[fs_df_name]['Accuracy_mean'].to_numpy()
-                    y_err = df_exp[fs_df_name]['Accuracy_std'].to_numpy()
-                    y = np.repeat(y, len(x))
-                    y_err = np.repeat(y_err, len(x))
-                    plt.plot(x, y, label=label_dict['fs'], color=color_dict['fs'],
-                             linestyle=linestyle_dict['fs'])
-                    # plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict['fs'], alpha=.1)
-                    plt.legend(loc=loc_dict['Accuracy'], fontsize=fontsize_dict['legend'])
-                    ps_df_name = '_'.join([*df_name_list[:3], 'basic'])
-                    y = df_exp[ps_df_name]['Accuracy_mean'].to_numpy()
-                    y_err = df_exp[ps_df_name]['Accuracy_std'].to_numpy()
-                    y = np.repeat(y, len(x))
-                    y_err = np.repeat(y_err, len(x))
-                    plt.plot(x, y, label=label_dict['ps'], color=color_dict['ps'],
-                             linestyle=linestyle_dict['ps'])
-                    # plt.fill_between(x, (y - y_err), (y + y_err), color=color_dict['ps'], alpha=.1)
-                    plt.legend(loc=loc_dict['Accuracy'], fontsize=fontsize_dict['legend'])
+                y = df_exp[fs_df_name]['Accuracy_mean'].to_numpy()
+                y_err = df_exp[fs_df_name]['Accuracy_std'].to_numpy()
+                y = np.repeat(y, len(x))
+                y_err = np.repeat(y_err, len(x))
+                ax_1.plot(x, y, label=label_dict['fs'], color=color_dict['fs'], linestyle=linestyle_dict['fs'])
+                ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict['fs'], alpha=.1)
+                ps_df_name = '_'.join([*df_name_list[:3], 'basic'])
+                y = df_exp[ps_df_name]['Accuracy_mean'].to_numpy()
+                y_err = df_exp[ps_df_name]['Accuracy_std'].to_numpy()
+                y = np.repeat(y, len(x))
+                y_err = np.repeat(y_err, len(x))
+                ax_1.plot(x, y, label=label_dict['ps'], color=color_dict['ps'],
+                          linestyle=linestyle_dict['ps'])
+                ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict['ps'], alpha=.1)
+            ax_1.set_xlabel(xlabel, fontsize=fontsize['label'])
+            ax_1.set_ylabel(ylabel_1, fontsize=fontsize['label'])
+            ax_1.xaxis.set_tick_params(labelsize=fontsize['ticks'])
+            ax_1.yaxis.set_tick_params(labelsize=fontsize['ticks'])
+            ax_2.set_ylabel(ylabel_2, fontsize=fontsize['label'])
+            ax_2.xaxis.set_tick_params(labelsize=fontsize['ticks'])
+            ax_2.yaxis.set_tick_params(labelsize=fontsize['ticks'])
+        elif fl_mask:
+            label_dict = {'iid': 'IID', 'non-iid-l-2': 'Non-IID, $K=2$',
+                          'non-iid-d-0.1': 'Non-IID, $\operatorname{Dir}(0.1)$',
+                          'non-iid-d-0.3': 'Non-IID, $\operatorname{Dir}(0.3)$', 'fs': 'Centralized'}
+            color_dict = {'iid': 'red', 'non-iid-l-2': 'orange', 'non-iid-d-0.1': 'blue', 'non-iid-d-0.3': 'dodgerblue',
+                          'fs': 'black'}
+            linestyle_dict = {'iid': '-', 'non-iid-l-2': '--', 'non-iid-d-0.1': ':', 'non-iid-d-0.3': '-.',
+                              'fs': (0, (5, 5))}
+            xlabel = 'Communication Rounds'
+            ylabel = 'Accuracy'
+            data_split_mode = df_name_list[-3]
+            df_name_std = '_'.join([*df_name_list[:-1], 'std'])
+            fig_name = '_'.join([*df_name_list[:-3]])
+            fig[fig_name] = plt.figure(fig_name, figsize=figsize)
+            if fig_name not in ax_dict_1:
+                ax_dict_1[fig_name] = fig[fig_name].add_subplot(111)
+            ax_1 = ax_dict_1[fig_name]
+            y = df_history[df_name].iloc[0].to_numpy()
+            y_err = df_history[df_name_std].iloc[0].to_numpy()
+            x = np.arange(len(y))
+            ax_1.plot(x, y, label=label_dict[data_split_mode], color=color_dict[data_split_mode],
+                      linestyle=linestyle_dict[data_split_mode])
+            ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict[data_split_mode], alpha=.1)
+            if data_split_mode in ['iid']:
+                fs_df_name = '_'.join([*df_name_list[:2], 'fs', 'basic'])
+                fig[fig_name] = plt.figure(fig_name)
+                x = np.arange(len(y))
+                y = df_exp[fs_df_name]['Accuracy_mean'].to_numpy()
+                y_err = df_exp[fs_df_name]['Accuracy_std'].to_numpy()
+                y = np.repeat(y, len(x))
+                y_err = np.repeat(y_err, len(x))
+                ax_1.plot(x, y, label=label_dict['fs'], color=color_dict['fs'], linestyle=linestyle_dict['fs'])
+                ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict['fs'], alpha=.1)
+            ax_1.set_xlabel(xlabel, fontsize=fontsize['label'])
+            ax_1.set_ylabel(ylabel, fontsize=fontsize['label'])
+            ax_1.xaxis.set_tick_params(labelsize=fontsize['ticks'])
+            ax_1.yaxis.set_tick_params(labelsize=fontsize['ticks'])
     for fig_name in fig:
         fig[fig_name] = plt.figure(fig_name)
-        plt.grid()
-        fig_path = '{}/{}.{}'.format(vis_path, fig_name, save_format)
-        makedir_exist_ok(vis_path)
-        plt.savefig(fig_path, dpi=500, bbox_inches='tight', pad_inches=0)
+        control = fig_name.split('_')
+        ax_dict_1[fig_name].grid(linestyle='--', linewidth='0.5')
+        h_1, l_1 = ax_dict_1[fig_name].get_legend_handles_labels()
+        if len(control) == 5:
+            h_2, l_2 = ax_dict_2[fig_name].get_legend_handles_labels()
+            h = h_1 + h_2
+            l = l_1 + l_2
+            dir_name = 'semi'
+        else:
+            h, l = h_1, l_1
+            if 'sup' in control:
+                dir_name = 'fl'
+            else:
+                dir_name = 'ssfl'
+        ax_dict_1[fig_name].legend(h, l, loc=label_loc_dict['Accuracy'], fontsize=fontsize['legend'])
+        fig[fig_name].tight_layout()
+        dir_path = os.path.join(vis_path, dir_name)
+        fig_path = os.path.join(dir_path, '{}.{}'.format(fig_name, save_format))
+        makedir_exist_ok(dir_path)
+        plt.savefig(fig_path, dpi=dpi, bbox_inches='tight', pad_inches=0)
         plt.close(fig_name)
     return
 

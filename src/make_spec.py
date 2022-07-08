@@ -34,7 +34,6 @@ def main():
     cfg['control']['data_name'] = 'SpeechCommandsV1'
     process_control()
     augs = ['plain', 'basic', 'basic-spec', 'basic-rands', 'basic-spec-rands']
-    # augs = ['plain']
     dataset = fetch_dataset(cfg['data_name'])
     target_dict = {"yes": 0, "no": 1, "up": 2, "down": 3, "left": 4, "right": 5, "on": 6, "off": 7, "stop": 8,
                    "go": 9, 'silence': 10, 'unknown': 11}
@@ -51,8 +50,7 @@ def main():
         input_1 = collate(input_1)
         plot_spectrogram_1(input_0['data'], './output/spec/{}_{}_0.png'.format(augs[i], target_list[label_0]))
         plot_spectrogram_1(input_1['data'], './output/spec/{}_{}_1.png'.format(augs[i], target_list[label_1]))
-        lam = beta.sample()[0]
-        lam = max(lam, (1 - lam))
+        lam = 0.7
         input_mix = lam * input_0['data'] + (1 - lam) * input_1['data']
         plot_spectrogram_1(input_mix, './output/spec/{}_mix_{}.png'.format(augs[i], lam))
     return

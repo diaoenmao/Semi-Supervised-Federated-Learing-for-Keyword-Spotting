@@ -119,7 +119,6 @@ def train(sup_dataloader, unsup_dataloader, model, optimizer, metric, logger, ep
             if 'mix' in cfg['loss_mode']:
                 mix_size = min(len(sup_input['data']), len(unsup_input['data']))
                 lam = beta.sample()[0]
-                lam = max(lam, (1 - lam))
                 unsup_input['mix_data'] = (lam * sup_input['data'][:mix_size] +
                                            (1 - lam) * unsup_input['data'][:mix_size]).detach()
                 unsup_input['mix_target'] = torch.stack([sup_input['target'][:mix_size],
