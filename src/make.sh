@@ -19,5 +19,5 @@ python make.py --mode semi-aug --run test --num_experiments 4 --round 16 --split
 python make.py --mode semi-loss --run train  --num_experiments 4 --round 16 --split_round 1
 python make.py --mode semi-loss --run test --num_experiments 4 --round 16 --split_round 1
 
-python make.py --mode ssfl --run train --num_experiments 4 --round 16 --split_round 2
-python make.py --mode ssfl --run test --num_experiments 4 --round 16 --split_round 2
+python make.py --mode ssfl --run train --num_experiments 4 --round 16 --split_round 1
+python make.py --mode ssfl --run test --num_experiments 4 --round 16 --split_round 1
