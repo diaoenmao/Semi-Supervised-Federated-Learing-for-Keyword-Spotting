@@ -10,7 +10,7 @@ from collections import defaultdict
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 result_path = './output/result'
-save_format = 'pdf'
+save_format = 'png'
 vis_path = './output/vis/{}'.format(save_format)
 num_experiments = 4
 exp = [str(x) for x in list(range(num_experiments))]
@@ -40,7 +40,7 @@ def make_control_list(mode):
                          ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(control_name)
     elif mode == 'fl-alter':
-        control_name = [[data, model, ['2500'], ['basic'], ['sup'], ['100'], ['0.1'],
+        control_name = [[data, model, ['250', '2500'], ['basic'], ['sup'], ['100'], ['0.1'],
                          ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(control_name)
     elif mode == 'semi':
@@ -54,10 +54,6 @@ def make_control_list(mode):
         control_name = [[data, model, ['250', '2500'], ['basic=basic-spec'], ['fix-mix']]]
         controls = make_controls(control_name)
     elif mode == 'ssfl':
-        control_name = [[data, model, ['250', '2500'], ['basic=basic-spec'], ['fix'], ['100'], ['0.1'],
-                         ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
-        controls = make_controls(control_name)
-    elif mode == 'ssfl-loss':
         control_name = [[data, model, ['250', '2500'], ['basic=basic-spec'], ['fix-mix'], ['100'], ['0.1'],
                          ['iid', 'non-iid-l-2', 'non-iid-d-0.1', 'non-iid-d-0.3']]]
         controls = make_controls(control_name)
@@ -67,8 +63,7 @@ def make_control_list(mode):
 
 
 def main():
-    # modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug', 'semi-loss', 'ssfl', 'ssfl-loss']
-    modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug', 'semi-loss']
+    modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug', 'semi-loss', 'ssfl-loss']
     controls = []
     for mode in modes:
         controls += make_control_list(mode)
@@ -144,7 +139,7 @@ def summarize_result(processed_result):
         processed_result[pivot] = processed_result[pivot].tolist()
     elif 'history' in processed_result:
         pivot = 'history'
-        processed_result[pivot] = [x for x in processed_result[pivot] if x is not None]
+        processed_result[pivot] = [x for x in processed_result[pivot] if x is not None and len(x) > 100]
         processed_result[pivot] = np.stack(processed_result[pivot], axis=0)
         processed_result['mean'] = np.mean(processed_result[pivot], axis=0)
         processed_result['std'] = np.std(processed_result[pivot], axis=0)
@@ -219,7 +214,7 @@ def make_vis(df_exp, df_history):
         metric_name, stat = df_name_list[-2], df_name_list[-1]
         semi_mask = len(df_name_list) == 7 and metric_name not in ['Loss'] and stat == 'mean'
         fl_mask = len(df_name_list) == 10 and 'sup' in df_name_list and metric_name not in ['Loss'] and stat == 'mean'
-        ssfl_mask = len(df_name_list) == 10 and 'sup' not in df_name_list and\
+        ssfl_mask = len(df_name_list) == 10 and 'sup' not in df_name_list and \
                     metric_name not in ['Loss'] and stat == 'mean'
         if semi_mask:
             label_dict = {'Accuracy': 'Test', 'PAccuracy': 'Pseudo-Label', 'MAccuracy': 'Thresholded',
@@ -299,9 +294,6 @@ def make_vis(df_exp, df_history):
             ax_1 = ax_dict_1[fig_name]
             y = df_history[df_name].iloc[0].to_numpy()
             y_err = df_history[df_name_std].iloc[0].to_numpy()
-            if metric_name in ['PAccuracy', 'MAccuracy', 'LabelRatio']:
-                y = y[::3]
-                y_err = y_err[::3]
             x = np.arange(len(y))
             ax_1.plot(x, y, label=label_dict[data_split_mode], color=color_dict[data_split_mode],
                       linestyle=linestyle_dict[data_split_mode])
@@ -321,29 +313,40 @@ def make_vis(df_exp, df_history):
             ax_1.xaxis.set_tick_params(labelsize=fontsize['ticks'])
             ax_1.yaxis.set_tick_params(labelsize=fontsize['ticks'])
         elif ssfl_mask:
-            label_dict = {'iid': 'IID', 'non-iid-l-2': 'Non-IID, $K=2$',
-                          'non-iid-d-0.1': 'Non-IID, $\operatorname{Dir}(0.1)$',
-                          'non-iid-d-0.3': 'Non-IID, $\operatorname{Dir}(0.3)$', 'fs': 'Centralized'}
-            color_dict = {'iid': 'red', 'non-iid-l-2': 'orange', 'non-iid-d-0.1': 'blue', 'non-iid-d-0.3': 'dodgerblue',
-                          'fs': 'black'}
-            linestyle_dict = {'iid': '-', 'non-iid-l-2': '--', 'non-iid-d-0.1': ':', 'non-iid-d-0.3': '-.',
-                              'fs': (0, (5, 5))}
+            label_dict = {'Accuracy': 'Test', 'PAccuracy': 'Pseudo-Label', 'MAccuracy': 'Thresholded',
+                          'LabelRatio': 'Label Ratio',
+                          'fs': 'Fully Supervised', 'ps': 'Partially Supervised'}
+            color_dict = {'Accuracy': 'red', 'PAccuracy': 'dodgerblue', 'MAccuracy': 'blue', 'LabelRatio': 'green',
+                          'fs': 'black', 'ps': 'orange'}
+            linestyle_dict = {'Accuracy': '-', 'PAccuracy': '--', 'MAccuracy': ':', 'LabelRatio': '-.',
+                              'fs': (0, (5, 5)),
+                              'ps': (0, (5, 10))}
             xlabel = 'Communication Rounds'
-            ylabel = 'Accuracy'
-            data_split_mode = df_name_list[-3]
+            ylabel_1 = 'Accuracy'
+            ylabel_2 = 'Label Ratio'
             df_name_std = '_'.join([*df_name_list[:-1], 'std'])
-            fig_name = '_'.join([*df_name_list[:-3]])
+            fig_name = '_'.join([*df_name_list[:-2]])
             fig[fig_name] = plt.figure(fig_name, figsize=figsize)
             if fig_name not in ax_dict_1:
                 ax_dict_1[fig_name] = fig[fig_name].add_subplot(111)
+                ax_dict_2[fig_name] = ax_dict_1[fig_name].twinx()
             ax_1 = ax_dict_1[fig_name]
+            ax_2 = ax_dict_2[fig_name]
             y = df_history[df_name].iloc[0].to_numpy()
             y_err = df_history[df_name_std].iloc[0].to_numpy()
+            if metric_name in ['PAccuracy', 'MAccuracy', 'LabelRatio']:
+                y = y[::3]
+                y_err = y_err[::3]
             x = np.arange(len(y))
-            ax_1.plot(x, y, label=label_dict[data_split_mode], color=color_dict[data_split_mode],
-                      linestyle=linestyle_dict[data_split_mode])
-            ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict[data_split_mode], alpha=.1)
-            if data_split_mode in ['iid']:
+            if metric_name in ['LabelRatio']:
+                ax_2.plot(x, y, label=label_dict[metric_name], color=color_dict[metric_name],
+                          linestyle=linestyle_dict[metric_name])
+                ax_2.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
+            else:
+                ax_1.plot(x, y, label=label_dict[metric_name], color=color_dict[metric_name],
+                          linestyle=linestyle_dict[metric_name])
+                ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict[metric_name], alpha=.1)
+            if metric_name in ['Accuracy']:
                 fs_df_name = '_'.join([*df_name_list[:2], 'fs', 'basic'])
                 fig[fig_name] = plt.figure(fig_name)
                 x = np.arange(len(y))
@@ -353,10 +356,21 @@ def make_vis(df_exp, df_history):
                 y_err = np.repeat(y_err, len(x))
                 ax_1.plot(x, y, label=label_dict['fs'], color=color_dict['fs'], linestyle=linestyle_dict['fs'])
                 ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict['fs'], alpha=.1)
+                ps_df_name = '_'.join([*df_name_list[:3], 'basic'])
+                y = df_exp[ps_df_name]['Accuracy_mean'].to_numpy()
+                y_err = df_exp[ps_df_name]['Accuracy_std'].to_numpy()
+                y = np.repeat(y, len(x))
+                y_err = np.repeat(y_err, len(x))
+                ax_1.plot(x, y, label=label_dict['ps'], color=color_dict['ps'],
+                          linestyle=linestyle_dict['ps'])
+                ax_1.fill_between(x, (y - y_err), (y + y_err), color=color_dict['ps'], alpha=.1)
             ax_1.set_xlabel(xlabel, fontsize=fontsize['label'])
-            ax_1.set_ylabel(ylabel, fontsize=fontsize['label'])
+            ax_1.set_ylabel(ylabel_1, fontsize=fontsize['label'])
             ax_1.xaxis.set_tick_params(labelsize=fontsize['ticks'])
             ax_1.yaxis.set_tick_params(labelsize=fontsize['ticks'])
+            ax_2.set_ylabel(ylabel_2, fontsize=fontsize['label'])
+            ax_2.xaxis.set_tick_params(labelsize=fontsize['ticks'])
+            ax_2.yaxis.set_tick_params(labelsize=fontsize['ticks'])
     for fig_name in fig:
         fig[fig_name] = plt.figure(fig_name)
         control = fig_name.split('_')
@@ -374,6 +388,9 @@ def make_vis(df_exp, df_history):
                 labels = [labels[1], labels[0], labels[4], labels[3], labels[2]]
                 dir_name = 'fl'
             else:
+                handles_2, labels_2 = ax_dict_2[fig_name].get_legend_handles_labels()
+                handles = handles_1 + handles_2
+                labels = labels_1 + labels_2
                 dir_name = 'ssfl'
         ax_dict_1[fig_name].legend(handles, labels, loc=label_loc_dict['Accuracy'], fontsize=fontsize['legend'])
         fig[fig_name].tight_layout()

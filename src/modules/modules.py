@@ -157,7 +157,6 @@ class Client:
             optimizer = make_optimizer(model, 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
-            model.train(True)
             for epoch in range(1, cfg['local']['num_epochs'] + 1):
                 for i, input in enumerate(data_loader):
                     input = collate(input)
