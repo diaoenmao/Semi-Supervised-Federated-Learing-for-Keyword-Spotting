@@ -63,7 +63,7 @@ def make_control_list(mode):
 
 
 def main():
-    modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug', 'semi-loss', 'ssfl-loss']
+    modes = ['fs', 'ps', 'fl', 'fl-alter', 'semi', 'semi-aug', 'semi-loss', 'ssfl']
     controls = []
     for mode in modes:
         controls += make_control_list(mode)
