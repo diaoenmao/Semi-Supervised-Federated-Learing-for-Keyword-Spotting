@@ -177,9 +177,9 @@ def process_control():
         #     cfg['server']['batch_size'] = {'train': 25, 'test': 500}
         cfg['server']['batch_size'] = {'train': 10, 'test': 500}
         # if cfg['loss_mode'] == 'sup':
-        #     cfg['server']['num_epochs'] = 1
-        # else:
         #     cfg['server']['num_epochs'] = 5
+        # else:
+        #     cfg['server']['num_epochs'] = 10
         cfg['server']['num_epochs'] = 10
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
