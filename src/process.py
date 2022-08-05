@@ -104,7 +104,7 @@ def extract_result(control, model_tag, processed_result_exp, processed_result_hi
                 mode, metric_name_i = k.split('/')
                 if (mode == 'test' and metric_name_i in metric_name_1) or (
                         mode == 'train' and metric_name_i in metric_name_2):
-                    if metric_name_i not in processed_result_exp:
+                    if metric_name_i not in processed_result_history:
                         processed_result_history[metric_name_i] = {'history': [None for _ in range(num_experiments)]}
                     processed_result_history[metric_name_i]['history'][exp_idx] = \
                         base_result['logger']['train'].history[k]
