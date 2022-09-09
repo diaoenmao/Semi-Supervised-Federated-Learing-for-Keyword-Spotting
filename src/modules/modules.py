@@ -14,11 +14,11 @@ from utils import to_device, make_optimizer, collate
 
 class Server:
     def __init__(self, model):
-        self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+        self.model_state_dict = save_model_state_dict(model.state_dict())
         optimizer = make_optimizer(model, 'local')
-        self.optimizer_state_dict = optimizer.state_dict()
+        self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
         global_optimizer = make_optimizer(model, 'global')
-        self.global_optimizer_state_dict = global_optimizer.state_dict()
+        self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
 
     def distribute(self, client, batchnorm_dataset=None):
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
@@ -26,7 +26,7 @@ class Server:
         model.load_state_dict(self.model_state_dict)
         if batchnorm_dataset is not None:
             model = make_batchnorm_stats(batchnorm_dataset, model, 'global')
-        model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+        model_state_dict = save_model_state_dict(model.state_dict())
         for m in range(len(client)):
             if client[m].active:
                 client[m].model_state_dict = copy.deepcopy(model_state_dict)
@@ -52,8 +52,8 @@ class Server:
                             tmp_v += weight[m] * valid_client[m].model_state_dict[k]
                         v.grad = (v.data - tmp_v).detach()
                 global_optimizer.step()
-                self.global_optimizer_state_dict = global_optimizer.state_dict()
-                self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+                self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
+                self.model_state_dict = save_model_state_dict(model.state_dict())
             for i in range(len(client)):
                 client[i].active = False
         return
@@ -79,7 +79,8 @@ class Server:
                 optimizer.step()
                 evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
                 logger.append(evaluation, 'train', n=input_size)
-        self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+        self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
+        self.model_state_dict = save_model_state_dict(model.state_dict())
         return
 
 
@@ -87,9 +88,9 @@ class Client:
     def __init__(self, client_id, model, data_split):
         self.client_id = client_id
         self.data_split = data_split
-        self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+        self.model_state_dict = save_model_state_dict(model.state_dict())
         optimizer = make_optimizer(model, 'local')
-        self.optimizer_state_dict = optimizer.state_dict()
+        self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
         self.active = False
         self.beta = torch.distributions.beta.Beta(torch.tensor([cfg['alpha']]), torch.tensor([cfg['alpha']]))
 
@@ -230,6 +231,20 @@ class Client:
                     logger.append(evaluation, 'train', n=input_size)
         else:
             raise ValueError('Not valid loss mode')
-        self.optimizer_state_dict = optimizer.state_dict()
-        self.model_state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
+        self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
+        self.model_state_dict = save_model_state_dict(model.state_dict())
         return
+
+
+def save_model_state_dict(model_state_dict):
+    return {k: v.cpu() for k, v in model_state_dict.items()}
+
+
+def save_optimizer_state_dict(optimizer_state_dict):
+    optimizer_state_dict_ = {}
+    for k, v in optimizer_state_dict.items():
+        if k == 'state':
+            optimizer_state_dict_[k] = to_device(optimizer_state_dict[k], 'cpu')
+        else:
+            optimizer_state_dict_[k] = copy.deepcopy(optimizer_state_dict[k])
+    return optimizer_state_dict_
