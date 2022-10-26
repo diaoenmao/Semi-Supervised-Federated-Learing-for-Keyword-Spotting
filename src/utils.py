@@ -171,8 +171,11 @@ def process_control():
         cfg['gm'] = 0
         cfg['server'] = {}
         cfg['server']['shuffle'] = {'train': True, 'test': False}
-        cfg['server']['batch_size'] = {'train': 10, 'test': 500}
-        cfg['server']['num_epochs'] = 10
+        if cfg['num_supervised'] > 1000:
+            cfg['server']['batch_size'] = {'train': 250, 'test': 500}
+        else:
+            cfg['server']['batch_size'] = {'train': 25, 'test': 500}
+        cfg['server']['num_epochs'] = 5
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
         cfg['client']['batch_size'] = {'train': 10, 'test': 500}

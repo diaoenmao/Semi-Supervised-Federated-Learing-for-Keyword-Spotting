@@ -10,7 +10,7 @@ from collections import defaultdict
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 result_path = './output/result'
-save_format = 'png'
+save_format = 'pdf'
 vis_path = './output/vis/{}'.format(save_format)
 num_experiments = 4
 exp = [str(x) for x in list(range(num_experiments))]
