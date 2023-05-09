@@ -4,6 +4,7 @@
 <p align="center">
 <img src="/asset/ssfl.png">
 </p>
+
 - An illustration of leveraging unlabeled audio streams in Semi-Supervised Learning (SSL).
 <p align="center">
 <img src="/asset/semi.png">
@@ -26,19 +27,19 @@ See `requirements.txt`
  - The data are split at `split_dataset()` in `data.py`
  
 ## Examples
- - Train SSL for SpeechCommandsV1 dataset (TCResNet18, $N_\mathcal{S}=250, Weak Augment: BasicAugment, Strong Augment: SpecAugment and MixAugment)
+ - Train SSL for SpeechCommandsV1 dataset (TCResNet18, $N_\mathcal{S}=250$, Weak Augment: BasicAugment, Strong Augment: SpecAugment and MixAugment)
     ```ruby
     python train_classifier_semi.py --control_name SpeechCommandsV1_tcresnet18_250_basic=basic-spec_fix
     ```
- - Train FL (Alternate) for SpeechCommandsV2 dataset (TCResNet18, $N_\mathcal{S}=250, Augment: BasicAugment, $M=100$, $C=0.1$, Non-IID ( $Dir(0.1)$ ))
+ - Train FL (Alternate) for SpeechCommandsV2 dataset (TCResNet18, $N_\mathcal{S}=250$, Augment: BasicAugment, $M=100$, $C=0.1$, Non-IID ( $Dir(0.1)$ ))
     ```ruby
     python train_classifier_ssfl.py --control_name SpeechCommandsV2_tcresnet18_250_basic_sup_100_0.1_non-iid-d-0.1
     ```
- - Train SemiFL for SpeechCommandsV1 dataset (TCResNet18, $N_\mathcal{S}=2500, Weak Augment: BasicAugment, Strong Augment: SpecAugment and MixAugment, $M=100$, $C=0.1$, IID)
+ - Train SemiFL for SpeechCommandsV1 dataset (TCResNet18, $N_\mathcal{S}=2500$, Weak Augment: BasicAugment, Strong Augment: SpecAugment and MixAugment, $M=100$, $C=0.1$, IID)
     ```ruby
     python train_classifier_ssfl.py --control_name SpeechCommandsV1_tcresnet18_2500_basic=basic-spec_fix-mix_100_0.1_iid
     ```
- - Test SemiFL for SpeechCommandsV2 dataset (TCResNet18, $N_\mathcal{S}=2500, Weak Augment: BasicAugment, Strong Augment: BasicAugment, $M=100$, $C=0.1$, Non-IID ( $K=2$ ))
+ - Test SemiFL for SpeechCommandsV2 dataset (TCResNet18, $N_\mathcal{S}=2500$, Weak Augment: BasicAugment, Strong Augment: BasicAugment, $M=100$, $C=0.1$, Non-IID ( $K=2$ ))
     ```ruby
     python test_classifier_ssfl.py --control_name SpeechCommandsV2_tcresnet18_2500_basic=basic_fix_100_0.1_non-iid-l-2
     ```
@@ -48,13 +49,14 @@ See `requirements.txt`
 <p align="center">
 <img src="/asset/lc.png">
 </p>
+
 - Comparison between ‘Parallel’ and ‘Alternate’ training for heterogeneous on-device data.
 <p align="center">
 <img src="/asset/alter.png">
 </p>
 
 ## Acknowledgements
-*Enmao Diao 
-Eric W. Tramel  
+*Enmao Diao  
+Eric W. Tramel    
 Jie Ding  
 Tao Zhang*
