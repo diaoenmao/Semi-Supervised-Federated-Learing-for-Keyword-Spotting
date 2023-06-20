@@ -1,5 +1,5 @@
 # Semi-Supervised Federated Learing for Keyword Spotting
-[ICME 2023] This is an implementation of [Semi-Supervised Federated Learing for Keyword Spotting]()
+[ICME 2023] This is an implementation of [Semi-Supervised Federated Learing for Keyword Spotting](https://arxiv.org/abs/2305.05110)
 - An illustration of Semi-Supervised Federated Learning (SSFL) for Keyword Spotting (KWS).
 <p align="center">
 <img src="/asset/ssfl.png">
